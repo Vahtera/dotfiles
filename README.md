@@ -16,7 +16,7 @@ git clone https://github.com/Vahtera/dotfiles.git ~/.dotfiles && cd ~/.dotfiles 
 
 Or via direct curl execution:
 ```bash
-curl -sSL https://raw.githubusercontent.com/Vahtera/dotfiles/main/setup.sh | bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Vahtera/dotfiles/main/setup.sh)"
 ```
 
 ---
