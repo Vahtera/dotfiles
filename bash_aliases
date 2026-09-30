@@ -17,3 +17,4 @@ fi
 alias kernel="uname -r | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)-.*/\1/'"
 alias showip='ip -4 addr show scope global | grep inet | awk "{print \$2}" | cut -d"/" -f1 | paste -s -d, -'
 alias weather='curl wttr.in/Tampere?M'
+alias dl='aria2c'
