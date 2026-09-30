@@ -60,7 +60,7 @@ install_alternative() {
 debian_apps=(
     'git' 'neovim' 'ranger' 'tmux' 'wget' 'zsh' 'pipx' 'gh' 'lynx' 'elinks'
     'aria2' 'bat' 'broot' 'ctags' 'diff-so-fancy' 'duf' 'fzf' 'hyperfine' 
-    'just' 'jq' 'most' 'procs' 'ripgrep' 'scrot' 'sd' 'thefuck' 'tealdeer' 
+    'just' 'jq' 'most' 'procs' 'ripgrep' 'scrot' 'sd' 'thefuck' 
     'tree' 'tokei' 'trash-cli' 'xsel' 'zoxide' 'qalc'
     'golang' 'nodejs' 'npm' 'python3-full'
     'clamav' 'cryptsetup' 'gnupg' 'git-crypt' 'lynis' 'openssl' 'rkhunter'
@@ -98,6 +98,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo -e "${PURPLE}Checking package alternatives...${RESET}"
     install_alternative "eza" "exa"
     install_alternative "fastfetch" "neofetch"
+    install_alternative "tealdeer" "tldr"
 
     for app in "${debian_apps[@]}"; do
         if command -v "$app" &>/dev/null; then
