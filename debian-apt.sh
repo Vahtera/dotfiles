@@ -70,6 +70,14 @@ debian_apps=(
 
 python_apps=( 'epy-reader' 'lazygit' 'tuir' )
 
+apt_installed=()
+apt_skipped=()
+apt_failed=()
+apt_unavailable=()
+
+pipx_installed=()
+pipx_failed=()
+
 # Update package database
 echo -e "${CYAN_B}Would you like to update package database? (y/N)${RESET}"
 read -t $PROMPT_TIMEOUT -n 1 -r REPLY
@@ -103,14 +111,21 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     for app in "${debian_apps[@]}"; do
         if command -v "$app" &>/dev/null; then
             echo -e "${YELLOW}[Skipping]${LIGHT} $app is already installed${RESET}"
+            apt_skipped+=("$app")
         elif command -v flatpak &>/dev/null && flatpak list --columns=ref 2>/dev/null | grep -q "$app"; then
             echo -e "${YELLOW}[Skipping]${LIGHT} $app is already installed via Flatpak${RESET}"
+            apt_skipped+=("$app")
         else
             if apt-cache show "$app" &>/dev/null 2>&1; then
                 echo -e "${PURPLE}[Installing]${LIGHT} Downloading $app...${RESET}"
-                sudo apt install -y "$app"
+                if sudo apt install -y "$app"; then
+                    apt_installed+=("$app")
+                else
+                    apt_failed+=("$app")
+                fi
             else
                 echo -e "${YELLOW}[Notice]${LIGHT} Package '$app' not found in apt repos, skipping.${RESET}"
+                apt_unavailable+=("$app")
             fi
         fi
     done
@@ -142,4 +157,29 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     sudo apt autoclean -y
 fi
 
+echo
+echo -e "${PURPLE}========================================${RESET}"
+echo -e "${PURPLE} Installation Summary${RESET}"
+echo -e "${PURPLE}========================================${RESET}"
+
+print_list() {
+    local title="$1"
+    shift
+    echo
+    echo -e "${CYAN_B}${title} (${#@}):${RESET}"
+    if [ "$#" -eq 0 ]; then
+        echo "  None"
+    else
+        printf '  - %s\n' "$@"
+    fi
+}
+
+print_list "APT installed" "${apt_installed[@]}"
+print_list "APT skipped (already installed)" "${apt_skipped[@]}"
+print_list "APT failed" "${apt_failed[@]}"
+print_list "APT unavailable" "${apt_unavailable[@]}"
+print_list "pipx installed" "${pipx_installed[@]}"
+print_list "pipx failed" "${pipx_failed[@]}"
+
+echo
 echo -e "${PURPLE}Finished installing / updating packages.${RESET}"
