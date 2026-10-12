@@ -60,7 +60,7 @@ fi
 
 # 2. Deploy .bash_aliases
 echo -e "\n${CYAN}[2/4] Deploying .bash_aliases...${RESET}"
-if fetch_file ".bash_aliases" "$HOME/.bash_aliases"; then
+if fetch_file "bash_aliases" "$HOME/.bash_aliases"; then
     echo -e "  ${GREEN}✓ Copied .bash_aliases to $HOME/.bash_aliases${RESET}"
 fi
 
