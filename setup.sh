@@ -34,7 +34,7 @@ fetch_file() {
         cp "$SCRIPT_DIR/$filename" "$dest"
         return 0
     elif command -v curl &>/dev/null; then
-        curl -sSL "$REPO_RAW_URL/$filename" -o "$dest"
+        curl -fsSL "$REPO_RAW_URL/$filename" -o "$dest"
         return 0
     elif command -v wget &>/dev/null; then
         wget -qO "$dest" "$REPO_RAW_URL/$filename"
