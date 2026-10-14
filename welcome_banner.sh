@@ -64,12 +64,15 @@ welcome_today () {
     echo -e "${COLOR_S}$(date '+🗓️  Date: %A, %B %d, %Y at %H:%M')${RESET}"
 
     if command -v curl &>/dev/null; then
+        local CITY
         local weather
-        weather=$(curl -s -m $timeout "https://wttr.in/?format=%c%l:+%C+%t,+%p+%w&M" 2>/dev/null)
+        CITY=$(curl -fsS --max-time 3 https://ipinfo.io/city 2>/dev/null)
+        weather=$(curl -fsS -m "$timeout" "https://wttr.in/${CITY}?format=%c%l:+%C+%t,+%p+%w&M" 2>/dev/null)
         if [ -n "$weather" ]; then
             echo -e "${COLOR_S}🌤️  Weather: ${weather}${RESET}"
         fi
     fi
+
 
     if command -v ip &>/dev/null; then
         local ip_address ip_interface public_ip
