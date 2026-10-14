@@ -14,6 +14,7 @@ YELLOW='\033[0;33m'
 RESET='\033[0m'
 
 REPO_RAW_URL="https://raw.githubusercontent.com/Vahtera/dotfiles/main"
+OS_RELEASE_FILE="${OS_RELEASE_FILE:-/etc/os-release}"
 
 echo -e "${CYAN}====================================================${RESET}"
 echo -e "${PURPLE}   Setting up Dotfiles for user: ${YELLOW}$USER${RESET}"
@@ -101,41 +102,64 @@ EOF
     echo -e "  ${GREEN}✓ Appended custom setup block to $BASHRC${RESET}"
 fi
 
-# 4. Run package installation script
+# 4. Run the package installation script for the detected distro
 echo -e "\n${CYAN}[4/4] Package Installation Check...${RESET}"
 
-TEMP_APT_SCRIPT=""
-if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/debian-apt.sh" ]; then
-    DEBIAN_APT_EXEC="$SCRIPT_DIR/debian-apt.sh"
+PACKAGE_SCRIPT=""
+if [ -r "$OS_RELEASE_FILE" ]; then
+    . "$OS_RELEASE_FILE"
+    DISTRO_ID="${ID,,}"
+    DISTRO_LIKE=" ${ID_LIKE,,} "
+
+    case "$DISTRO_ID" in
+        debian|ubuntu|linuxmint|pop|raspbian|kali) PACKAGE_SCRIPT="debian-apt.sh" ;;
+        fedora|rhel|centos|rocky|almalinux|nobara) PACKAGE_SCRIPT="fedora-dnf.sh" ;;
+        void) PACKAGE_SCRIPT="void-xbps.sh" ;;
+        *)
+            case "$DISTRO_LIKE" in
+                *" debian "*|*" ubuntu "*) PACKAGE_SCRIPT="debian-apt.sh" ;;
+                *" fedora "*|*" rhel "*|*" centos "*) PACKAGE_SCRIPT="fedora-dnf.sh" ;;
+            esac
+            ;;
+    esac
+fi
+
+TEMP_PACKAGE_SCRIPT=""
+PACKAGE_EXEC=""
+if [ -n "$PACKAGE_SCRIPT" ]; then
+    if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/$PACKAGE_SCRIPT" ]; then
+        PACKAGE_EXEC="$SCRIPT_DIR/$PACKAGE_SCRIPT"
+    else
+        TEMP_PACKAGE_SCRIPT="$(mktemp "/tmp/${PACKAGE_SCRIPT%.sh}.XXXXXX")"
+        if fetch_file "$PACKAGE_SCRIPT" "$TEMP_PACKAGE_SCRIPT"; then
+            PACKAGE_EXEC="$TEMP_PACKAGE_SCRIPT"
+        else
+            PACKAGE_EXEC=""
+        fi
+    fi
+
+    if [ -n "$PACKAGE_EXEC" ]; then
+        # Prompt user safely, attaching stdin to /dev/tty if stdin is piped
+        PROMPT_CMD="read -p 'Would you like to run $PACKAGE_SCRIPT to update and install packages now? (y/N) ' -n 1 -r REPLY"
+        if [ -c /dev/tty ]; then
+            eval "$PROMPT_CMD < /dev/tty" || REPLY="N"
+        else
+            eval "$PROMPT_CMD" || REPLY="N"
+        fi
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            bash "$PACKAGE_EXEC" "$@"
+        else
+            echo -e "  ${YELLOW}Skipped package installation. You can run $PACKAGE_SCRIPT manually later.${RESET}"
+        fi
+    fi
 else
-    TEMP_APT_SCRIPT="$(mktemp /tmp/debian-apt.XXXXXX.sh)"
-    if fetch_file "debian-apt.sh" "$TEMP_APT_SCRIPT"; then
-        chmod +x "$TEMP_APT_SCRIPT"
-        DEBIAN_APT_EXEC="$TEMP_APT_SCRIPT"
-    else
-        DEBIAN_APT_EXEC=""
-    fi
+    echo -e "  ${YELLOW}Unsupported or undetected Linux distribution; skipping package installation.${RESET}"
 fi
 
-if [ -n "$DEBIAN_APT_EXEC" ] && [ -x "$DEBIAN_APT_EXEC" ]; then
-    # Prompt user safely, attaching stdin to /dev/tty if stdin is piped
-    PROMPT_CMD="read -p 'Would you like to run debian-apt.sh to update and install packages now? (y/N) ' -n 1 -r REPLY"
-    if [ -c /dev/tty ]; then
-        eval "$PROMPT_CMD < /dev/tty" || REPLY="N"
-    else
-        eval "$PROMPT_CMD" || REPLY="N"
-    fi
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        "$DEBIAN_APT_EXEC" "$@"
-    else
-        echo -e "  ${YELLOW}Skipped package installation. You can run debian-apt.sh manually later.${RESET}"
-    fi
-fi
-
-# Cleanup temp file if created
-if [ -n "$TEMP_APT_SCRIPT" ] && [ -f "$TEMP_APT_SCRIPT" ]; then
-    rm -f "$TEMP_APT_SCRIPT"
+# Cleanup downloaded installer if created
+if [ -n "$TEMP_PACKAGE_SCRIPT" ] && [ -f "$TEMP_PACKAGE_SCRIPT" ]; then
+    rm -f "$TEMP_PACKAGE_SCRIPT"
 fi
 
 echo -e "\n${GREEN}====================================================${RESET}"
