@@ -14,7 +14,14 @@ if command -v batcat &>/dev/null && ! command -v bat &>/dev/null; then
     alias bat='batcat'
 fi
 
+if command -v pom &>/dev/null; then
+    alias moonphase='curl wttr.in/Moon'
+fi
+
+if command -v aria2c &>/dev/null; then
+    alias dl='aria2c'
+fi
+
 alias kernel="uname -r | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)-.*/\1/'"
 alias showip='ip -4 addr show scope global | grep inet | awk "{print \$2}" | cut -d"/" -f1 | paste -s -d, -'
-alias weather='curl wttr.in/Tampere?M'
-alias dl='aria2c'
+alias weather='(CITY=$(curl -fsS --max-time 3 https://ipinfo.io/city 2>/dev/null) && curl "wttr.in/${CITY// /+}?M")'
