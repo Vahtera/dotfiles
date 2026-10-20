@@ -65,7 +65,7 @@ debian_apps=(
     'golang' 'nodejs' 'npm' 'python3-full'
     'clamav' 'cryptsetup' 'gnupg' 'git-crypt' 'lynis' 'openssl' 'rkhunter'
     'btop' 'bmon' 'ctop' 'gping' 'glances' 'goaccess' 'speedtest-cli' 'wavemon' 'sysbench'
-    'cowsay' 'figlet' 'lolcat' 'wordgrinder' 'nudoku' 'trippy'
+    'cowsay' 'figlet' 'lolcat' 'wordgrinder' 'nudoku' 'trippy' 'nvtop'
 )
 
 python_apps=( 'epy-reader' 'lazygit' 'tuir' )
