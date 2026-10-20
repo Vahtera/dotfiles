@@ -8,7 +8,7 @@ Repository: [https://github.com/Vahtera/dotfiles](https://github.com/Vahtera/dot
 
 ## ⚡ Quick Start
 
-Execute via command line on a supported Debian-based, Fedora-based, or Void Linux installation:
+Execute via command line on a supported Debian-based, Fedora-based, Void Linux, or FreeBSD installation:
 
 ```bash
 git clone https://github.com/Vahtera/dotfiles.git ~/.dotfiles && cd ~/.dotfiles && ./setup.sh
@@ -26,6 +26,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/Vahtera/dotfiles/main/se
 * `setup.sh` - Master installer. Configures `~/.bashrc`, places executables in `~/.local/bin/`, deploys `.bash_aliases`, and triggers package installation.
 * `debian-apt.sh` - APT & pipx package installer featuring smart fallback handling for package alternatives (`eza`/`exa`, `fastfetch`/`neofetch`).
 * `fedora-dnf.sh` - DNF package installer for Fedora and related distributions.
+* `freebsd-pkg.sh` - `pkg` package installer for FreeBSD.
 * `void-xbps.sh` - XBPS package installer for Void Linux.
 * `welcome_banner.sh` - Interactive login greeting script displaying system stats, IP address, and weather.
 * `run_benchmark.sh` - Multi-core & single-core CPU benchmarking tool powered by `sysbench`.

@@ -102,7 +102,7 @@ EOF
     echo -e "  ${GREEN}✓ Appended custom setup block to $BASHRC${RESET}"
 fi
 
-# 4. Run the package installation script for the detected distro
+# 4. Deploy Conky configuration
 echo -e "\n${CYAN}[4/5] Deploying Conky configuration...${RESET}"
 CONKY_DIR="$HOME/.conky"
 mkdir -p "$CONKY_DIR"
@@ -125,6 +125,7 @@ if [ -r "$OS_RELEASE_FILE" ]; then
     case "$DISTRO_ID" in
         debian|ubuntu|linuxmint|pop|raspbian|kali) PACKAGE_SCRIPT="debian-apt.sh" ;;
         fedora|rhel|centos|rocky|almalinux|nobara) PACKAGE_SCRIPT="fedora-dnf.sh" ;;
+        freebsd) PACKAGE_SCRIPT="freebsd-pkg.sh" ;;
         void) PACKAGE_SCRIPT="void-xbps.sh" ;;
         *)
             case "$DISTRO_LIKE" in
@@ -165,7 +166,7 @@ if [ -n "$PACKAGE_SCRIPT" ]; then
         fi
     fi
 else
-    echo -e "  ${YELLOW}Unsupported or undetected Linux distribution; skipping package installation.${RESET}"
+    echo -e "  ${YELLOW}Unsupported or undetected operating system; skipping package installation.${RESET}"
 fi
 
 # Cleanup downloaded installer if created
