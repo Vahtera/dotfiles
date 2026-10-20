@@ -78,7 +78,7 @@ void_apps=(
     sd tree tokei trash-cli xsel zoxide qalc go nodejs npm python3 python3-pipx clamav
     cryptsetup gnupg git-crypt lynis openssl rkhunter btop bmon ctop gping
     glances goaccess speedtest-cli wavemon sysbench cowsay figlet lolcat
-    wordgrinder nudoku
+    wordgrinder nudoku nvtop
 )
 python_apps=(epy-reader lazygit tuir)
 
