@@ -47,7 +47,7 @@ fetch_file() {
 }
 
 # 1. Install CLI tools to $HOME/.local/bin
-echo -e "${CYAN}[1/4] Installing CLI tools to $LOCAL_BIN...${RESET}"
+echo -e "${CYAN}[1/5] Installing CLI tools to $LOCAL_BIN...${RESET}"
 
 if fetch_file "welcome_banner.sh" "$LOCAL_BIN/welcome_banner.sh"; then
     chmod +x "$LOCAL_BIN/welcome_banner.sh"
@@ -60,13 +60,13 @@ if fetch_file "run_benchmark.sh" "$LOCAL_BIN/run_benchmark.sh"; then
 fi
 
 # 2. Deploy .bash_aliases
-echo -e "\n${CYAN}[2/4] Deploying .bash_aliases...${RESET}"
+echo -e "\n${CYAN}[2/5] Deploying .bash_aliases...${RESET}"
 if fetch_file "bash_aliases" "$HOME/.bash_aliases"; then
     echo -e "  ${GREEN}✓ Copied .bash_aliases to $HOME/.bash_aliases${RESET}"
 fi
 
 # 3. Update .bashrc safely
-echo -e "\n${CYAN}[3/4] Updating $HOME/.bashrc...${RESET}"
+echo -e "\n${CYAN}[3/5] Updating $HOME/.bashrc...${RESET}"
 BASHRC="$HOME/.bashrc"
 touch "$BASHRC"
 
@@ -103,7 +103,18 @@ EOF
 fi
 
 # 4. Run the package installation script for the detected distro
-echo -e "\n${CYAN}[4/4] Package Installation Check...${RESET}"
+echo -e "\n${CYAN}[4/5] Deploying Conky configuration...${RESET}"
+CONKY_DIR="$HOME/.conky"
+mkdir -p "$CONKY_DIR"
+
+for filename in sidebar-conkyrc topbar-conkyrc moon_info.py conky-start.sh; do
+    if fetch_file "$filename" "$CONKY_DIR/$filename"; then
+        echo -e "  ${GREEN}✓ Copied $filename to $CONKY_DIR/${RESET}"
+    fi
+done
+
+# 5. Run the package installation script for the detected distro
+echo -e "\n${CYAN}[5/5] Package Installation Check...${RESET}"
 
 PACKAGE_SCRIPT=""
 if [ -r "$OS_RELEASE_FILE" ]; then

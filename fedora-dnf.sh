@@ -78,7 +78,7 @@ fedora_apps=(
     tree tokei trash-cli xsel zoxide qalc golang nodejs npm python3
     clamav cryptsetup gnupg git-crypt lynis openssl rkhunter btop bmon ctop
     gping glances goaccess speedtest-cli wavemon sysbench cowsay figlet lolcat
-    wordgrinder nudoku nvtop
+    wordgrinder nudoku nvtop bsd-games trippy
 )
 python_apps=(epy-reader lazygit tuir)
 

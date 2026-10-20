@@ -73,6 +73,13 @@ welcome_today () {
         fi
     fi
 
+    if command -v pom &>/dev/null; then
+        local pom_output
+        pom_output=$(pom 2>/dev/null)
+        if [ -n "$pom_output" ]; then
+            echo -e "${COLOR_S}🌙  Moon: ${pom_output}${RESET}\n"
+        fi
+    fi
 
     if command -v ip &>/dev/null; then
         local ip_address ip_interface public_ip
@@ -81,9 +88,10 @@ welcome_today () {
         public_ip=$(curl -s -m $timeout 'https://ipinfo.io/ip' 2>/dev/null)
 
         if [ -n "$ip_address" ]; then
-            echo -e "${COLOR_S}🌐 IP: ${public_ip:-N/A} (${ip_address} on ${ip_interface})${RESET}\n"
+            echo -e "${COLOR_S}🌐  IP: ${public_ip:-N/A} (${ip_address} on ${ip_interface})${RESET}\n"
         fi
     fi
+
 }
 
 welcome() {
