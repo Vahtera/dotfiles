@@ -46,6 +46,141 @@ fetch_file() {
     fi
 }
 
+run_privileged() {
+    if [ "$EUID" -eq 0 ]; then
+        "$@"
+    else
+        sudo "$@"
+    fi
+}
+
+ssh_server_listening() {
+    if command -v ss >/dev/null 2>&1; then
+        ss -ltnH 'sport = :22' 2>/dev/null | grep -q .
+    elif command -v sockstat >/dev/null 2>&1; then
+        sockstat -4 -6 -l -P tcp -p 22 2>/dev/null | grep -q sshd
+    else
+        (exec 3<>/dev/tcp/127.0.0.1/22) >/dev/null 2>&1
+    fi
+}
+
+allow_ssh_nft_chain() {
+    local family="$1"
+    if ! nft list chain "$family" filter input >/dev/null 2>&1; then
+        return 1
+    fi
+    if ! nft list chain "$family" filter input 2>/dev/null | grep -Eq 'tcp dport 22 accept'; then
+        run_privileged nft insert rule "$family" filter input tcp dport 22 accept
+    fi
+}
+
+setup_ssh_server() {
+    local ssh_package="openssh-server"
+    local ssh_service="sshd"
+
+    case "$PACKAGE_SCRIPT" in
+        debian-apt.sh) ssh_service="ssh" ;;
+        void-xbps.sh) ssh_package="openssh" ;;
+        freebsd-pkg.sh) ssh_package="openssh" ;;
+    esac
+
+    if ! command -v sshd >/dev/null 2>&1; then
+        echo -e "${CYAN}Installing SSH server ($ssh_package)...${RESET}"
+        case "$PACKAGE_SCRIPT" in
+            debian-apt.sh) run_privileged apt install -y "$ssh_package" ;;
+            fedora-dnf.sh) run_privileged dnf install -y "$ssh_package" ;;
+            void-xbps.sh) run_privileged xbps-install -y "$ssh_package" ;;
+            freebsd-pkg.sh) run_privileged pkg install -y "$ssh_package" ;;
+        esac
+    fi
+
+    if ! command -v sshd >/dev/null 2>&1; then
+        echo -e "${YELLOW}SSH server is unavailable; skipping service and firewall setup.${RESET}"
+        return
+    fi
+    if ! run_privileged sshd -t; then
+        echo -e "${YELLOW}SSH server configuration is invalid; not starting sshd.${RESET}"
+        return
+    fi
+
+    case "$PACKAGE_SCRIPT" in
+        freebsd-pkg.sh)
+            run_privileged sysrc sshd_enable=YES
+            if ! service sshd onestatus >/dev/null 2>&1; then
+                run_privileged service sshd start
+            fi
+            ;;
+        void-xbps.sh)
+            if [ ! -e /var/service/sshd ]; then
+                run_privileged ln -s /etc/sv/sshd /var/service/sshd
+            fi
+            if command -v sv >/dev/null 2>&1; then
+                run_privileged sv up sshd
+            fi
+            ;;
+        *)
+            if command -v systemctl >/dev/null 2>&1; then
+                run_privileged systemctl enable --now "$ssh_service"
+            else
+                echo -e "${YELLOW}systemctl is unavailable; start sshd manually to accept SSH connections.${RESET}"
+            fi
+            ;;
+    esac
+
+    if ! ssh_server_listening; then
+        echo -e "${YELLOW}SSH service is not listening on TCP port 22; firewall rules were not changed.${RESET}"
+        return
+    fi
+
+    if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q '^Status: active'; then
+        run_privileged ufw allow 22/tcp
+        echo -e "${GREEN}Allowed SSH through UFW (TCP port 22).${RESET}"
+    elif command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
+        if ! firewall-cmd --query-service=ssh >/dev/null 2>&1; then
+            run_privileged firewall-cmd --permanent --add-service=ssh
+            run_privileged firewall-cmd --reload
+        fi
+        echo -e "${GREEN}Allowed SSH through firewalld (TCP port 22).${RESET}"
+    elif command -v nft >/dev/null 2>&1 && nft list ruleset 2>/dev/null | grep -Eq 'hook input'; then
+        if allow_ssh_nft_chain inet || allow_ssh_nft_chain ip || allow_ssh_nft_chain ip6; then
+            echo -e "${GREEN}Allowed SSH through nftables for the current ruleset (TCP port 22).${RESET}"
+            echo -e "${YELLOW}Persist the rule in your nftables configuration if your rules are reloaded at boot.${RESET}"
+        else
+            echo -e "${YELLOW}An nftables firewall is active, but no standard filter input chain was found; allow inbound TCP port 22 in your nftables rules.${RESET}"
+        fi
+    elif command -v iptables >/dev/null 2>&1 && iptables -S INPUT 2>/dev/null | grep -Eq '^-P INPUT (DROP|REJECT)|^-A INPUT'; then
+        if ! iptables -C INPUT -p tcp --dport 22 -j ACCEPT 2>/dev/null; then
+            run_privileged iptables -I INPUT 1 -p tcp --dport 22 -j ACCEPT
+        fi
+        if command -v ip6tables >/dev/null 2>&1 && ip6tables -S INPUT 2>/dev/null | grep -Eq '^-P INPUT (DROP|REJECT)|^-A INPUT'; then
+            if ! ip6tables -C INPUT -p tcp --dport 22 -j ACCEPT 2>/dev/null; then
+                run_privileged ip6tables -I INPUT 1 -p tcp --dport 22 -j ACCEPT
+            fi
+        fi
+        if command -v netfilter-persistent >/dev/null 2>&1; then
+            run_privileged netfilter-persistent save
+        else
+            echo -e "${YELLOW}Allowed SSH through iptables for this session; no persistent iptables save tool was found.${RESET}"
+        fi
+    elif command -v ipfw >/dev/null 2>&1 && ipfw list 2>/dev/null | grep -q 'deny ip from any to any'; then
+        local ipfw_rules rule_number
+        ipfw_rules="$(ipfw list 2>/dev/null)"
+        if ! grep -Eq 'allow tcp .*dst-port 22' <<< "$ipfw_rules"; then
+            rule_number=65534
+            while grep -q "^$rule_number " <<< "$ipfw_rules" && [ "$rule_number" -gt 1 ]; do
+                rule_number=$((rule_number - 1))
+            done
+            run_privileged ipfw add "$rule_number" allow tcp from any to me 22 in
+        fi
+        echo -e "${GREEN}Allowed SSH through ipfw for the current ruleset (TCP port 22).${RESET}"
+        echo -e "${YELLOW}Persist the rule in your FreeBSD firewall configuration if rules are reloaded at boot.${RESET}"
+    elif command -v pfctl >/dev/null 2>&1 && pfctl -s info 2>/dev/null | grep -q 'Status: Enabled'; then
+        echo -e "${YELLOW}PF is active. Its rules were left unchanged; allow inbound TCP port 22 in /etc/pf.conf.${RESET}"
+    else
+        echo -e "${CYAN}No active supported firewall detected; no firewall rules changed.${RESET}"
+    fi
+}
+
 # 1. Install CLI tools to $HOME/.local/bin
 echo -e "${CYAN}[1/5] Installing CLI tools to $LOCAL_BIN...${RESET}"
 
@@ -139,6 +274,24 @@ fi
 TEMP_PACKAGE_SCRIPT=""
 PACKAGE_EXEC=""
 if [ -n "$PACKAGE_SCRIPT" ]; then
+    setup_ssh_server
+
+    GUI_SCRIPT=""
+    case "$PACKAGE_SCRIPT" in
+        debian-apt.sh) GUI_SCRIPT="guiapps-apt.sh" ;;
+        fedora-dnf.sh) GUI_SCRIPT="guiapps-dnf.sh" ;;
+        freebsd-pkg.sh) GUI_SCRIPT="guiapps-pkg.sh" ;;
+        void-xbps.sh) GUI_SCRIPT="guiapps-xbps.sh" ;;
+    esac
+
+    if [ -n "$GUI_SCRIPT" ]; then
+        if fetch_file "guiapps-common.sh" "$LOCAL_BIN/guiapps-common.sh" \
+            && fetch_file "$GUI_SCRIPT" "$LOCAL_BIN/$GUI_SCRIPT"; then
+            chmod +x "$LOCAL_BIN/guiapps-common.sh" "$LOCAL_BIN/$GUI_SCRIPT"
+            echo -e "  ${GREEN}Installed $GUI_SCRIPT for manual use; it will not be run by setup.${RESET}"
+        fi
+    fi
+
     if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/$PACKAGE_SCRIPT" ]; then
         PACKAGE_EXEC="$SCRIPT_DIR/$PACKAGE_SCRIPT"
     else

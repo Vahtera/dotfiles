@@ -28,6 +28,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/Vahtera/dotfiles/main/se
 * `fedora-dnf.sh` - DNF package installer for Fedora and related distributions.
 * `freebsd-pkg.sh` - `pkg` package installer for FreeBSD.
 * `void-xbps.sh` - XBPS package installer for Void Linux.
+* `guiapps-*.sh` - Manual GUI app installers for supported systems. `setup.sh` installs the matching script and its helper, but never runs it. Start it with `guiapps-apt.sh`, `guiapps-dnf.sh`, `guiapps-xbps.sh`, or `guiapps-pkg.sh` from `~/.local/bin/`.
+* `guiapps-common.sh` - Shared GUI app installation logic, including Flatpak/Flathub setup and Kitty defaults.
 * `welcome_banner.sh` - Interactive login greeting script displaying system stats, IP address, and weather.
 * `run_benchmark.sh` - Multi-core & single-core CPU benchmarking tool powered by `sysbench`.
 * `.bash_aliases` - Custom CLI shortcuts dynamically configured to your installed tools.
