@@ -7,7 +7,7 @@ import sys
 def get_city():
     try:
         city = subprocess.check_output(
-            ["curl", "-fsS", "--max-time", "3", "https://ipinfo.io/city"],
+            ["curl", "-fsS", "--max-time", "3", "http://ip-api.com/line/?fields=city"],
             stderr=subprocess.DEVNULL
         ).decode("utf-8").strip()
         return city
