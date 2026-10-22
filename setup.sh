@@ -194,6 +194,21 @@ if fetch_file "run_benchmark.sh" "$LOCAL_BIN/run_benchmark.sh"; then
     echo -e "  ${GREEN}✓ Installed run_benchmark.sh${RESET}"
 fi
 
+if [ -c /dev/tty ]; then
+    read -r -p 'Disable automatically learned IPv6 DNS? (Y/n) ' REPLY < /dev/tty || REPLY=""
+else
+    read -r -p 'Disable automatically learned IPv6 DNS? (Y/n) ' REPLY || REPLY=""
+fi
+echo
+if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+    if fetch_file "disable-ipv6-auto-dns.sh" "$LOCAL_BIN/disable-ipv6-auto-dns.sh"; then
+        chmod +x "$LOCAL_BIN/disable-ipv6-auto-dns.sh"
+        if ! bash "$LOCAL_BIN/disable-ipv6-auto-dns.sh"; then
+            echo -e "  ${YELLOW}IPv6 auto-DNS configuration failed; continuing setup.${RESET}"
+        fi
+    fi
+fi
+
 # 2. Deploy .bash_aliases
 echo -e "\n${CYAN}[2/5] Deploying .bash_aliases...${RESET}"
 if fetch_file "bash_aliases" "$HOME/.bash_aliases"; then
