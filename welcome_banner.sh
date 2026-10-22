@@ -66,7 +66,7 @@ welcome_today () {
     if command -v curl &>/dev/null; then
         local CITY
         local weather
-        CITY=$(curl -fsS --max-time 3 https://ipinfo.io/city 2>/dev/null)
+        CITY=$(curl -fsS --max-time 3 http://ip-api.com/line/?fields=city 2>/dev/null)
         weather=$(curl -fsS -m "$timeout" "https://wttr.in/${CITY}?format=%c%l:+%C+%t,+%p+%w&M" 2>/dev/null)
         if [ -n "$weather" ]; then
             echo -e "${COLOR_S}🌤️  Weather: ${weather}${RESET}"
@@ -85,7 +85,7 @@ welcome_today () {
         local ip_address ip_interface public_ip
         ip_address=$(ip route get 8.8.8.8 2>/dev/null | awk -F"src " 'NR==1{split($2,a," ");print a[1]}')
         ip_interface=$(ip route get 8.8.8.8 2>/dev/null | awk -F"dev " 'NR==1{split($2,a," ");print a[1]}')
-        public_ip=$(curl -s -m $timeout 'https://ipinfo.io/ip' 2>/dev/null)
+        public_ip=$(curl -s -m $timeout 'http://ip-api.com/line/?fields=query' 2>/dev/null)
 
         if [ -n "$ip_address" ]; then
             echo -e "${COLOR_S}🌐  IP: ${public_ip:-N/A} (${ip_address} on ${ip_interface})${RESET}\n"
