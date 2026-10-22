@@ -292,6 +292,11 @@ if [ -n "$PACKAGE_SCRIPT" ]; then
         fi
     fi
 
+    if fetch_file "setup-browser.sh" "$LOCAL_BIN/setup-browser.sh"; then
+        chmod +x "$LOCAL_BIN/setup-browser.sh"
+        echo -e "  ${GREEN}Installed setup-browser.sh for manual use; it will not be run by setup.${RESET}"
+    fi
+
     if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/$PACKAGE_SCRIPT" ]; then
         PACKAGE_EXEC="$SCRIPT_DIR/$PACKAGE_SCRIPT"
     else
