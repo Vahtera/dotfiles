@@ -33,6 +33,15 @@ native_package_available() {
     esac
 }
 
+native_package_installed() {
+    case "$PACKAGE_MANAGER" in
+        apt) [[ "$(dpkg-query -W -f='${Status}' "$1" 2>/dev/null || true)" == 'install ok installed' ]] ;;
+        dnf) rpm -q "$1" >/dev/null 2>&1 ;;
+        xbps) xbps-query -p pkgver "$1" >/dev/null 2>&1 ;;
+        pkg) pkg info -e "$1" >/dev/null 2>&1 ;;
+    esac
+}
+
 ensure_flatpak() {
     if ! command -v flatpak >/dev/null 2>&1; then
         if [[ "$PACKAGE_MANAGER" == pkg ]]; then
@@ -42,8 +51,7 @@ ensure_flatpak() {
         install_native flatpak
     fi
 
-    if ! flatpak remote-list --user --columns=name 2>/dev/null | grep -qx flathub \
-        && ! flatpak remote-list --system --columns=name 2>/dev/null | grep -qx flathub; then
+    if ! flatpak remote-list --user --columns=name 2>/dev/null | grep -qx flathub; then
         flatpak remote-add --user --if-not-exists flathub "$FLATHUB_URL" || return 1
     fi
 }
@@ -65,8 +73,12 @@ install_desktop_app() {
         return
     fi
     if [[ -n "$package" ]] && native_package_available "$package"; then
-        install_native "$package"
-    elif ensure_flatpak; then
+        if install_native "$package"; then
+            return 0
+        fi
+        echo "Native installation failed for $package; trying Flatpak."
+    fi
+    if ensure_flatpak; then
         install_flatpak "$app_id"
     else
         return 1
@@ -74,13 +86,48 @@ install_desktop_app() {
 }
 
 install_conky() {
-    if native_package_available conky; then
-        install_native conky
-    elif native_package_available conky-all; then
-        install_native conky-all
-    else
-        echo "No native package found for conky or conky-all; skipping."
-    fi
+    local package
+    for package in conky conky-all; do
+        if native_package_installed "$package"; then
+            echo "Already installed: $package"
+            return 0
+        fi
+        if native_package_available "$package" && install_native "$package"; then
+            return 0
+        fi
+    done
+    echo "Neither conky nor conky-all could be found or installed."
+    return 1
+}
+
+install_vscode_from_repository() {
+    case "$PACKAGE_MANAGER" in
+        apt)
+            command -v curl >/dev/null 2>&1 || install_native curl || return 1
+            command -v gpg >/dev/null 2>&1 || install_native gnupg || return 1
+            local key_file
+            key_file="$(mktemp)" || return 1
+            if ! curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > "$key_file"; then
+                rm -f "$key_file"
+                return 1
+            fi
+            if ! run_privileged install -D -m 0644 "$key_file" /usr/share/keyrings/microsoft.gpg; then
+                rm -f "$key_file"
+                return 1
+            fi
+            rm -f "$key_file" || return 1
+            printf 'deb [arch=%s signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main\n' "$(dpkg --print-architecture)" \
+                | run_privileged tee /etc/apt/sources.list.d/vscode.list >/dev/null || return 1
+            run_privileged apt update || return 1
+            install_native code
+            ;;
+        dnf)
+            printf '%s\n' '[code]' 'name=Visual Studio Code' 'baseurl=https://packages.microsoft.com/yumrepos/vscode' 'enabled=1' 'autorefresh=1' 'type=rpm-md' 'gpgcheck=1' 'gpgkey=https://packages.microsoft.com/keys/microsoft.asc' \
+                | run_privileged tee /etc/yum.repos.d/vscode.repo >/dev/null || return 1
+            install_native code
+            ;;
+        *) return 1 ;;
+    esac
 }
 
 install_vscode() {
@@ -89,32 +136,14 @@ install_vscode() {
         echo "Already installed: com.visualstudio.code"
         return
     fi
-    if native_package_available code; then
-        install_native code
-        return
+    if native_package_available code && install_native code; then
+        return 0
     fi
-
-    case "$PACKAGE_MANAGER" in
-        apt)
-            command -v curl >/dev/null 2>&1 || install_native curl
-            command -v gpg >/dev/null 2>&1 || install_native gnupg
-            local key_file
-            key_file="$(mktemp)"
-            curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > "$key_file"
-            run_privileged install -D -m 0644 "$key_file" /usr/share/keyrings/microsoft.gpg
-            rm -f "$key_file"
-            printf 'deb [arch=%s signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main\n' "$(dpkg --print-architecture)" \
-                | run_privileged tee /etc/apt/sources.list.d/vscode.list >/dev/null
-            run_privileged apt update
-            install_native code
-            ;;
-        dnf)
-            printf '%s\n' '[code]' 'name=Visual Studio Code' 'baseurl=https://packages.microsoft.com/yumrepos/vscode' 'enabled=1' 'autorefresh=1' 'type=rpm-md' 'gpgcheck=1' 'gpgkey=https://packages.microsoft.com/keys/microsoft.asc' \
-                | run_privileged tee /etc/yum.repos.d/vscode.repo >/dev/null
-            install_native code
-            ;;
-        *) install_desktop_app '' com.visualstudio.code ;;
-    esac
+    if install_vscode_from_repository; then
+        return 0
+    fi
+    echo "Native installation of Visual Studio Code failed; trying Flatpak."
+    install_desktop_app '' com.visualstudio.code
 }
 
 install_helium() {
