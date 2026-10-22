@@ -4,6 +4,8 @@ set -euo pipefail
 
 PACKAGE_MANAGER="${1:?package manager is required}"
 FLATHUB_URL="https://flathub.org/repo/flathub.flatpakrepo"
+export PACKAGE_MANAGER FLATHUB_URL
+FAILED_APPS=()
 
 run_privileged() {
     if [[ "$EUID" -eq 0 ]]; then
@@ -66,6 +68,18 @@ install_desktop_app() {
         install_native "$package"
     elif ensure_flatpak; then
         install_flatpak "$app_id"
+    else
+        return 1
+    fi
+}
+
+install_conky() {
+    if native_package_available conky; then
+        install_native conky
+    elif native_package_available conky-all; then
+        install_native conky-all
+    else
+        echo "No native package found for conky or conky-all; skipping."
     fi
 }
 
@@ -152,6 +166,7 @@ install_sniffnet() {
             asset_url="$(curl -fsSL https://api.github.com/repos/GyulyVGC/sniffnet/releases/latest | jq -r --arg arch "$arch" '.assets[] | select(.name == ("Sniffnet_LinuxDEB_" + (if $arch == "x86_64" then "amd64" else "arm64" end) + ".deb")) | .browser_download_url')"
             package_file="$(mktemp --suffix=.deb)"
             curl -fL "$asset_url" -o "$package_file"
+            chmod 644 "$package_file"
             run_privileged apt install -y "$package_file"
             ;;
         dnf)
@@ -213,6 +228,7 @@ install_appimagelauncher() {
         curl -fL "$asset_url" -o "$package_file"
         printf '%s  %s\n' "$digest" "$package_file" | sha256sum -c -
         if [[ "$PACKAGE_MANAGER" == apt ]]; then
+            chmod 644 "$package_file"
             run_privileged apt install -y "$package_file"
         else
             run_privileged dnf install -y "$package_file"
@@ -280,22 +296,35 @@ install_ge_proton() {
     rm -f "$archive"
 }
 
+run_app() {
+    local app="$1" status
+    shift
+    if "$BASH" -euo pipefail -c '"$@"' bash "$@"; then
+        return 0
+    else
+        status=$?
+        printf 'ERROR: %s was not installed (exit status %s); continuing.\n' "$app" "$status" >&2
+        FAILED_APPS+=("$app")
+    fi
+}
+
 if ! command -v "$PACKAGE_MANAGER" >/dev/null 2>&1; then
     echo "Required package manager '$PACKAGE_MANAGER' was not found."
     exit 1
 fi
 
 echo "Installing GUI applications for $PACKAGE_MANAGER..."
-install_if_available kitty
-install_if_available conky
-install_appimagelauncher
-setup_kitty_config
-install_helium
-install_sniffnet
+export -f $(compgen -A function)
+run_app "Kitty" install_if_available kitty
+run_app "Conky" install_conky
+run_app "AppImageLauncher" install_appimagelauncher
+run_app "Kitty configuration" setup_kitty_config
+run_app "Helium" install_helium
+run_app "Sniffnet" install_sniffnet
 
-install_desktop_app discord com.discordapp.Discord
-install_desktop_app spotify-client com.spotify.Client
-install_vscode
+run_app "Discord" install_desktop_app discord com.discordapp.Discord
+run_app "Spotify" install_desktop_app spotify-client com.spotify.Client
+run_app "Visual Studio Code" install_vscode
 
 if [[ -t 0 ]]; then
     read -r -p 'Is this a gaming setup? (y/N) ' gaming_setup
@@ -303,11 +332,12 @@ else
     gaming_setup="n"
 fi
 if [[ "$gaming_setup" =~ ^[Yy]$ ]]; then
-    install_desktop_app steam-installer com.valvesoftware.Steam
-    if ensure_flatpak; then
-        install_flatpak net.davidotek.pupgui2
-        install_ge_proton
-    fi
+    run_app "Steam" install_desktop_app steam-installer com.valvesoftware.Steam
+    run_app "ProtonUp-Qt" install_desktop_app '' net.davidotek.pupgui2
+    run_app "GE-Proton" install_ge_proton
 fi
 
+if ((${#FAILED_APPS[@]})); then
+    printf 'Apps not installed: %s\n' "${FAILED_APPS[*]}" >&2
+fi
 echo "GUI application setup complete."
