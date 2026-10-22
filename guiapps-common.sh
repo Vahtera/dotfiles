@@ -103,27 +103,25 @@ install_conky() {
 install_vscode_from_repository() {
     case "$PACKAGE_MANAGER" in
         apt)
-            command -v curl >/dev/null 2>&1 || install_native curl || return 1
-            command -v gpg >/dev/null 2>&1 || install_native gnupg || return 1
-            local key_file
-            key_file="$(mktemp)" || return 1
-            if ! curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > "$key_file"; then
-                rm -f "$key_file"
-                return 1
-            fi
-            if ! run_privileged install -D -m 0644 "$key_file" /usr/share/keyrings/microsoft.gpg; then
-                rm -f "$key_file"
-                return 1
-            fi
-            rm -f "$key_file" || return 1
-            printf 'deb [arch=%s signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main\n' "$(dpkg --print-architecture)" \
-                | run_privileged tee /etc/apt/sources.list.d/vscode.list >/dev/null || return 1
+            install_native wget gpg || return 1
+            wget -qO- https://packages.microsoft.com/keys/microsoft.asc \
+                | run_privileged gpg --dearmor --yes -o /usr/share/keyrings/microsoft.gpg || return 1
+            printf '%s\n' 'Types: deb' 'URIs: https://packages.microsoft.com/repos/code' 'Suites: stable' 'Components: main' 'Architectures: amd64,arm64,armhf' 'Signed-By: /usr/share/keyrings/microsoft.gpg' \
+                | run_privileged tee /etc/apt/sources.list.d/vscode.sources >/dev/null || return 1
             run_privileged apt update || return 1
             install_native code
             ;;
         dnf)
+            run_privileged rpm --import https://packages.microsoft.com/keys/microsoft.asc || return 1
             printf '%s\n' '[code]' 'name=Visual Studio Code' 'baseurl=https://packages.microsoft.com/yumrepos/vscode' 'enabled=1' 'autorefresh=1' 'type=rpm-md' 'gpgcheck=1' 'gpgkey=https://packages.microsoft.com/keys/microsoft.asc' \
                 | run_privileged tee /etc/yum.repos.d/vscode.repo >/dev/null || return 1
+            local status
+            if run_privileged dnf check-update; then
+                :
+            else
+                status=$?
+                [[ "$status" -eq 100 ]] || return 1
+            fi
             install_native code
             ;;
         *) return 1 ;;
@@ -135,9 +133,6 @@ install_vscode() {
         && { flatpak info --user com.visualstudio.code >/dev/null 2>&1 || flatpak info --system com.visualstudio.code >/dev/null 2>&1; }; then
         echo "Already installed: com.visualstudio.code"
         return
-    fi
-    if native_package_available code && install_native code; then
-        return 0
     fi
     if install_vscode_from_repository; then
         return 0
