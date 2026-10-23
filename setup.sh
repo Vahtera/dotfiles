@@ -277,6 +277,7 @@ if [ -r "$OS_RELEASE_FILE" ]; then
         fedora|rhel|centos|rocky|almalinux|nobara) PACKAGE_SCRIPT="fedora-dnf.sh" ;;
         freebsd) PACKAGE_SCRIPT="freebsd-pkg.sh" ;;
         void) PACKAGE_SCRIPT="void-xbps.sh" ;;
+        haiku) PACKAGE_SCRIPT="haiku-pkgman.sh" ;;
         *)
             case "$DISTRO_LIKE" in
                 *" debian "*|*" ubuntu "*) PACKAGE_SCRIPT="debian-apt.sh" ;;
@@ -286,10 +287,16 @@ if [ -r "$OS_RELEASE_FILE" ]; then
     esac
 fi
 
+if [[ "$(uname -s)" == "Haiku" ]]; then
+    PACKAGE_SCRIPT="haiku-pkgman.sh"
+fi
+
 TEMP_PACKAGE_SCRIPT=""
 PACKAGE_EXEC=""
 if [ -n "$PACKAGE_SCRIPT" ]; then
-    setup_ssh_server
+    if [ "$PACKAGE_SCRIPT" != "haiku-pkgman.sh" ]; then
+        setup_ssh_server
+    fi
 
     GUI_SCRIPT=""
     case "$PACKAGE_SCRIPT" in

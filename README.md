@@ -8,7 +8,7 @@ Repository: [https://github.com/Vahtera/dotfiles](https://github.com/Vahtera/dot
 
 ## ⚡ Quick Start
 
-Execute via command line on a supported Debian-based, Fedora-based, Void Linux, or FreeBSD installation:
+Execute via command line on a supported Debian-based, Fedora-based, Void Linux, FreeBSD, or Haiku installation:
 
 ```bash
 git clone https://github.com/Vahtera/dotfiles.git ~/.dotfiles && cd ~/.dotfiles && ./setup.sh
@@ -28,6 +28,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/Vahtera/dotfiles/main/se
 * `fedora-dnf.sh` - DNF package installer for Fedora and related distributions.
 * `freebsd-pkg.sh` - `pkg` package installer for FreeBSD.
 * `void-xbps.sh` - XBPS package installer for Void Linux.
+* `haiku-pkgman.sh` - `pkgman` installer for Haiku CLI tools.
 * `guiapps-*.sh` - Manual GUI app installers for supported systems. `setup.sh` installs the matching script and its helper, but never runs it. Start it with `guiapps-apt.sh`, `guiapps-dnf.sh`, `guiapps-xbps.sh`, or `guiapps-pkg.sh` from `~/.local/bin/`.
 * `guiapps-common.sh` - Shared GUI app installation logic, including Flatpak/Flathub setup and Kitty defaults.
 * `setup-browser.sh` - Manually downloads and unpacks the latest Chrome build of Authenticator - 2FA, then opens the MarkBridge Chrome Web Store listing in Helium for approval. `setup.sh` installs this helper but never runs it; run it later with `~/.local/bin/setup-browser.sh`.
