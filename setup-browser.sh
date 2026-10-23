@@ -3,7 +3,7 @@
 set -euo pipefail
 
 REPOSITORY="VastBlast/authenticator-2fa"
-MARKBRIDGE_URL="https://chromewebstore.google.com/detail/markbridge-%E2%80%93-multi-profil/jdmclnadijeiflbceglkmikakmgdcmji"
+KONODE_URL="https://chromewebstore.google.com/detail/konode/mmlfiiimnpnjcjhhbldenpcmnibedkfa"
 EXTENSIONS_DIR="$HOME/Applications/Extensions"
 
 for utility in curl jq unzip sha256sum; do
@@ -50,9 +50,9 @@ fi
 
 browser="$(command -v helium || command -v helium-browser || true)"
 if [[ -z "$browser" ]]; then
-    printf 'Helium was not found. Open this page in Helium to install MarkBridge:\n%s\n' "$MARKBRIDGE_URL" >&2
+    printf 'Helium was not found. Open this page in Helium to install Konode:\n%s\n' "$KONODE_URL" >&2
     exit 1
 fi
 
-"$browser" "$MARKBRIDGE_URL" >/dev/null 2>&1 &
-echo "Opened MarkBridge in Helium. Approve the extension installation in the browser."
+"$browser" "$KONODE_URL" >/dev/null 2>&1 &
+echo "Opened Konode in Helium. Approve the extension installation in the browser."
