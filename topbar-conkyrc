@@ -128,5 +128,5 @@ ${offset  85}SWP ${swapbar 5,75}
 ${font BirchStd:pixelsize=110}${color2}${alignc}${time %H:%M}${font}
 ${voffset 10}${font BirchStd:pixelsize=45}${color3}${alignc}${time %A} | ${time %d} ${time %B}${font}
 
-${voffset 10}${color1}${alignc}${execi 3600 /home/anna/.conky/moon_info.py}
+${voffset 10}${color1}${alignc}${execi 3600 $HOME/.conky/moon_info.py}
 ]];
