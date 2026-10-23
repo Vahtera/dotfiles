@@ -37,6 +37,40 @@ if ! command -v apt &>/dev/null; then
     exit 1
 fi
 
+ensure_spotify_apt_key() {
+    local key_file key_url="https://download.spotify.com/debian/pubkey_5384CE82BA52C83A.gpg"
+    if ! grep -Rqs 'repository.spotify.com' /etc/apt/sources.list /etc/apt/sources.list.d 2>/dev/null; then
+        return 0
+    fi
+
+    key_file="$(mktemp)"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$key_url" -o "$key_file"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO "$key_file" "$key_url"
+    else
+        rm -f "$key_file"
+        echo -e "${YELLOW}Cannot update Spotify's apt key: curl or wget is required.${RESET}"
+        return 1
+    fi
+
+    if ! gpg --show-keys --with-colons "$key_file" 2>/dev/null \
+        | awk -F: '$1 == "fpr" && substr($10, length($10) - 15) == "5384CE82BA52C83A" { found = 1 } END { exit !found }'; then
+        rm -f "$key_file"
+        echo -e "${YELLOW}Spotify's downloaded apt key did not match the expected key ID.${RESET}"
+        return 1
+    fi
+
+    if ! gpg --dearmor --yes --output "$key_file.gpg" "$key_file" \
+        || ! sudo install -m 0644 "$key_file.gpg" /etc/apt/trusted.gpg.d/spotify.gpg; then
+        rm -f "$key_file" "$key_file.gpg"
+        return 1
+    fi
+    rm -f "$key_file" "$key_file.gpg"
+}
+
+ensure_spotify_apt_key || exit 1
+
 install_alternative() {
     local primary="$1"
     local fallback="$2"
@@ -65,7 +99,7 @@ debian_apps=(
     'golang' 'nodejs' 'npm' 'python3-full'
     'clamav' 'cryptsetup' 'gnupg' 'git-crypt' 'lynis' 'openssl' 'rkhunter'
     'btop' 'bmon' 'ctop' 'gping' 'glances' 'goaccess' 'speedtest-cli' 'wavemon' 'sysbench'
-    'cowsay' 'figlet' 'lolcat' 'wordgrinder' 'nudoku' 'trippy' 'nvtop' 'bsd-games'
+    'cowsay' 'figlet' 'lolcat' 'wordgrinder' 'nudoku' 'trippy' 'nvtop'
 )
 
 python_apps=( 'epy-reader' 'lazygit' 'tuir' )
@@ -107,7 +141,8 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     install_alternative "eza" "exa"
     install_alternative "fastfetch" "neofetch"
     install_alternative "tealdeer" "tldr"
-
+    install_alternative "bsd-games" "bsdgames"
+    
     for app in "${debian_apps[@]}"; do
         if command -v "$app" &>/dev/null; then
             echo -e "${YELLOW}[Skipping]${LIGHT} $app is already installed${RESET}"
