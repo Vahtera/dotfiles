@@ -120,12 +120,13 @@ end
 
 conky.text = [[
 ${font clean:size=12}${color1}\
-${offset 290}CPU ${cpubar 5,75}\
+${offset 200}CPU ${cpubar 5,75}\
 ${offset  85}HDD ${fs_bar 3,75}${offset 85}MEM ${membar 5,75}\
 ${template0}\
 ${offset  85}SWP ${swapbar 5,75}
 ##TIME##
 ${font BirchStd:pixelsize=110}${color2}${alignc}${time %H:%M}${font}
 ${voffset 10}${font BirchStd:pixelsize=45}${color3}${alignc}${time %A} | ${time %d} ${time %B}${font}
-${voffset 10}${color1}${alignc}${execi 3600 /home/anna/.conky/MX-TopBar/moon_info.py}
+
+${voffset 10}${color1}${alignc}${execi 3600 /home/anna/.conky/moon_info.py}
 ]];
