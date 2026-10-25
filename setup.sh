@@ -247,6 +247,11 @@ fi
 if [ -x "$HOME/.local/bin/welcome_banner.sh" ] && [[ $- == *i* ]]; then
     clear && "$HOME/.local/bin/welcome_banner.sh"
 fi
+
+# Source powerline config
+if [ -x "$HOME/.config/bash/powerline" ] && [[ $- == *i* ]]; then
+    source "$HOME/.config/bash/powerline"
+fi
 # --------------------------------------
 EOF
     echo -e "  ${GREEN}✓ Appended custom setup block to $BASHRC${RESET}"
@@ -262,6 +267,15 @@ for filename in sidebar-conkyrc topbar-conkyrc moon_info.py conky-start.sh; do
         echo -e "  ${GREEN}✓ Copied $filename to $CONKY_DIR/${RESET}"
     fi
 done
+
+# 4.5 Deploy powerline configuration
+echo -e "\n${CYAN}[4.5/5] Deploying powerline configuration...${RESET}"
+POWERLINE_DIR="$HOME/.config/bash"
+mkdir -p "$POWERLINE_DIR"
+
+if fetch_file "powerline" "$POWERLINE_DIR/powerline"; then
+    echo -e "  ${GREEN}✓ Copied powerline to $POWERLINE_DIR/${RESET}"
+fi
 
 # 5. Run the package installation script for the detected distro
 echo -e "\n${CYAN}[5/5] Package Installation Check...${RESET}"

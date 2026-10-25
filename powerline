@@ -1,0 +1,129 @@
+# ~/.bash_powerline
+# Lightweight, standalone Bash Powerline prompt.
+# Source this file from ~/.bashrc. Requires Bash and Git (for Git segments).
+# Angled separators require a Powerline/Nerd Font in your terminal.
+
+# ---------------------------------------------------------------------------
+# Customization: ANSI 256-colour palette
+# Change each value independently. Foreground and background are separate.
+# ---------------------------------------------------------------------------
+
+PL_ICON='🐧'         # Tux icon; requires a Nerd Font with Linux glyphs
+PL_FG_ICON=255
+PL_BG_ICON=89      # charcoal
+
+PL_BG_USER=217       # DeepPink4
+PL_BG_HOST=15      # LightPink1
+PL_BG_DIR=220        # White
+PL_BG_GIT=10       # DarkOrange
+PL_BG_TIME=208      # Gold1
+PL_BG_EXIT=160      # red
+
+PL_FG_USER=0
+PL_FG_HOST=0
+PL_FG_DIR=0
+PL_FG_GIT=0
+PL_FG_TIME=0
+PL_FG_EXIT=255
+
+# Root's username segment is red, independently of the normal-user palette.
+PL_ROOT_FG=255
+PL_ROOT_BG=160
+
+# Segment spacing and Powerline separator.
+PL_PAD=' '
+PL_SEPARATOR=''
+
+# Set to 1 to show the exit segment for every command (0 is hidden on success).
+PL_SHOW_SUCCESS_EXIT=0
+
+# ---------------------------------------------------------------------------
+# Prompt implementation
+# ---------------------------------------------------------------------------
+
+_pl_escape() {
+    # Escape Bash prompt non-printing sequences so line wrapping stays correct.
+    printf '\\[%s\\]' "$1"
+}
+
+_pl_add_segment() {
+    # Arguments: text foreground-colour background-colour
+    local text=$1 fg=$2 bg=$3
+    [[ -n $text ]] || return 0
+
+    if [[ -n ${_PL_LAST_BG-} ]]; then
+        PS1+="$(_pl_escape "\e[38;5;${_PL_LAST_BG}m\e[48;5;${bg}m")${PL_SEPARATOR}"
+    else
+        PS1+="$(_pl_escape "\e[48;5;${bg}m")"
+    fi
+
+    PS1+="$(_pl_escape "\e[38;5;${fg}m")${PL_PAD}${text}${PL_PAD}"
+    _PL_LAST_BG=$bg
+}
+
+_pl_finish_segments() {
+    if [[ -n ${_PL_LAST_BG-} ]]; then
+        # Return to the terminal's default colours after the final segment.
+        PS1+="$(_pl_escape "\e[0m")"
+    fi
+}
+
+_pl_git_segment() {
+    local branch
+    branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null) || {
+        branch=$(git rev-parse --short HEAD 2>/dev/null) || return 0
+    }
+
+    # Add * when tracked/untracked changes are present. This is intentionally
+    # simple and portable; Git's status command may take time in huge repos.
+    if [[ -n $(git status --porcelain --untracked-files=normal 2>/dev/null) ]]; then
+        branch+=" *"
+    fi
+    printf '%s' " ${branch}"
+}
+
+powerline_update_prompt() {
+    # Capture this before running any commands; it is the previous command's
+    # exit status, not the status of prompt-generation commands.
+    local last_status=$?
+    local icon_text user_text host_text dir_text git_text time_text exit_text
+    local user_fg user_bg
+    PS1=''
+    _PL_LAST_BG=''
+
+    icon_text=$PL_ICON
+    user_text=${USER:-$(id -un 2>/dev/null)}
+    user_fg=$PL_FG_USER
+    user_bg=$PL_BG_USER
+    if [[ $EUID -eq 0 ]]; then
+        user_fg=$PL_ROOT_FG
+        user_bg=$PL_ROOT_BG
+    fi
+
+    # Keep directory display compact, but preserve ~ for the home directory.
+    dir_text=${PWD/#"$HOME"/\~}
+    git_text=$(_pl_git_segment)
+    time_text=$(date '+%H:%M')
+    host_text=$(hostname -s 2>/dev/null || hostname)
+
+    # Requested order: distro icon, user, host, directory, Git, clock, errors.
+    _pl_add_segment "$icon_text" "$PL_FG_ICON" "$PL_BG_ICON"
+    _pl_add_segment "$user_text" "$user_fg" "$user_bg"
+    _pl_add_segment "$host_text" "$PL_FG_HOST" "$PL_BG_HOST"
+    _pl_add_segment "$dir_text" "$PL_FG_DIR" "$PL_BG_DIR"
+    _pl_add_segment "$time_text" "$PL_FG_TIME" "$PL_BG_TIME"
+    _pl_add_segment "$git_text" "$PL_FG_GIT" "$PL_BG_GIT"
+
+    if (( last_status != 0 || PL_SHOW_SUCCESS_EXIT )); then
+        exit_text="✘ ${last_status}"
+        _pl_add_segment "$exit_text" "$PL_FG_EXIT" "$PL_BG_EXIT"
+    fi
+
+    _pl_finish_segments
+    # Final prompt marker, outside the coloured segments.
+    # PS1+="\n\$ "
+    PS1+=" "
+}
+
+# Avoid stacking duplicate prompt hooks if this file is sourced more than once.
+PROMPT_COMMAND=powerline_update_prompt
