@@ -9,6 +9,7 @@
 # ---------------------------------------------------------------------------
 
 # Optional override; otherwise the current distribution's Font Logos glyph is used.
+# PL_ICON='🐧'
 PL_ICON=''
 PL_FG_ICON=255
 PL_BG_ICON=89      # charcoal
