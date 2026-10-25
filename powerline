@@ -12,12 +12,14 @@ PL_ICON='🐧'         # Tux icon; requires a Nerd Font with Linux glyphs
 PL_FG_ICON=255
 PL_BG_ICON=89      # charcoal
 
-PL_BG_USER=217       # DeepPink4
-PL_BG_HOST=15      # LightPink1
-PL_BG_DIR=220        # White
-PL_BG_GIT=10       # DarkOrange
-PL_BG_TIME=208      # Gold1
-PL_BG_EXIT=160      # red
+# Colors of the Lesbian flag, for a bit of pride in your prompt. Adjust as desired.
+
+PL_BG_USER=212  # Pink
+PL_BG_HOST=15   # White
+PL_BG_DIR=214   # Yellow
+PL_BG_GIT=10    # GREEN
+PL_BG_TIME=202  # Orange
+PL_BG_EXIT=160  # RED
 
 PL_FG_USER=0
 PL_FG_HOST=0
