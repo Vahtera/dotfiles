@@ -311,7 +311,9 @@ if [ -n "$PACKAGE_SCRIPT" ]; then
 
     if [ -n "$GUI_SCRIPT" ]; then
         if fetch_file "guiapps-common.sh" "$LOCAL_BIN/guiapps-common.sh" \
-            && fetch_file "$GUI_SCRIPT" "$LOCAL_BIN/$GUI_SCRIPT"; then
+            && fetch_file "$GUI_SCRIPT" "$LOCAL_BIN/$GUI_SCRIPT" \
+            && fetch_file "kitty.conf" "$LOCAL_BIN/kitty.conf" \
+            && fetch_file "lucon.ttf" "$LOCAL_BIN/lucon.ttf"; then
             chmod +x "$LOCAL_BIN/guiapps-common.sh" "$LOCAL_BIN/$GUI_SCRIPT"
             echo -e "  ${GREEN}Installed $GUI_SCRIPT for manual use; it will not be run by setup.${RESET}"
         fi

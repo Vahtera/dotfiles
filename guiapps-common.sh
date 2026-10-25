@@ -271,14 +271,20 @@ install_if_available() {
 }
 
 setup_kitty_config() {
-    local config_dir="$HOME/.config/kitty"
-    mkdir -p "$config_dir"
+    local config_dir="$HOME/.config/kitty" font_dir="$HOME/.local/share/fonts"
+    mkdir -p "$config_dir" "$font_dir"
     if [[ ! -e "$config_dir/kitty.conf" ]]; then
-        printf '%s\n' 'background_opacity 0.8' 'initial_window_width 128c' 'initial_window_height 37c' > "$config_dir/kitty.conf"
-        echo "Installed Kitty defaults in $config_dir/kitty.conf"
+        install -m 0644 "$SCRIPT_DIR/kitty.conf" "$config_dir/kitty.conf"
+        echo "Installed Kitty config in $config_dir/kitty.conf"
     else
         echo "Keeping existing Kitty config: $config_dir/kitty.conf"
     fi
+
+    install -m 0644 "$SCRIPT_DIR/lucon.ttf" "$font_dir/lucon.ttf"
+    if command -v fc-cache >/dev/null 2>&1; then
+        fc-cache -f "$font_dir"
+    fi
+    echo "Installed Lucon font in $font_dir/lucon.ttf"
 }
 
 install_ge_proton() {
