@@ -116,6 +116,23 @@ if ask "Would you like to install listed apps?"; then
     for app in "${haiku_apps[@]}"; do
         install_package "$app"
     done
+
+    if command -v npm &>/dev/null; then
+        if npm install --prefix "$HOME/.local/share/font-logos" font-logos; then
+            if mkdir -p "$HOME/.local/share/fonts" \
+                && cp "$HOME/.local/share/font-logos/node_modules/font-logos/assets/font-logos.ttf" "$HOME/.local/share/fonts/"; then
+                if command -v fc-cache &>/dev/null; then
+                    fc-cache -f "$HOME/.local/share/fonts" || echo -e "${YELLOW}[Notice] Could not refresh the font cache.${RESET}"
+                fi
+            else
+                echo -e "${YELLOW}[Warning] Could not install the Font Logos font file.${RESET}"
+            fi
+        else
+            echo -e "${YELLOW}[Warning] Could not install font-logos via npm.${RESET}"
+        fi
+    else
+        echo -e "${YELLOW}[Notice] npm is unavailable; skipping font-logos.${RESET}"
+    fi
 fi
 
 print_list() {

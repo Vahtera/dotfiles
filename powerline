@@ -8,7 +8,8 @@
 # Change each value independently. Foreground and background are separate.
 # ---------------------------------------------------------------------------
 
-PL_ICON='🐧'         # Tux icon; requires a Nerd Font with Linux glyphs
+# Optional override; otherwise the current distribution's Font Logos glyph is used.
+PL_ICON=''
 PL_FG_ICON=255
 PL_BG_ICON=89      # charcoal
 
@@ -17,14 +18,14 @@ PL_BG_ICON=89      # charcoal
 PL_BG_USER=212  # Pink
 PL_BG_HOST=15   # White
 PL_BG_DIR=214   # Yellow
-PL_BG_GIT=10    # GREEN
+PL_BG_GIT=8    # GRAY
 PL_BG_TIME=202  # Orange
 PL_BG_EXIT=160  # RED
 
 PL_FG_USER=0
 PL_FG_HOST=0
 PL_FG_DIR=0
-PL_FG_GIT=0
+PL_FG_GIT=255
 PL_FG_TIME=0
 PL_FG_EXIT=255
 
@@ -42,6 +43,55 @@ PL_SHOW_SUCCESS_EXIT=0
 # ---------------------------------------------------------------------------
 # Prompt implementation
 # ---------------------------------------------------------------------------
+
+_pl_distro_icon() {
+    local distro_id='' distro_like=''
+    if [[ -r /etc/os-release ]]; then
+        . /etc/os-release
+        distro_id=${ID,,}
+        distro_like=${ID_LIKE,,}
+    fi
+
+    case "$distro_id" in
+        almalinux) printf '\uf31d' ;;
+        alpine) printf '\uf300' ;;
+        arch|archarm) printf '\uf303' ;;
+        cachyos) printf '\uf385' ;;
+        centos) printf '\uf304' ;;
+        debian|raspbian) printf '\uf306' ;;
+        devuan) printf '\uf307' ;;
+        elementary) printf '\uf309' ;;
+        endeavouros) printf '\uf322' ;;
+        fedora) printf '\uf30a' ;;
+        freebsd) printf '\uf30c' ;;
+        gentoo) printf '\uf30d' ;;
+        kali) printf '\uf327' ;;
+        linuxmint) printf '\uf30e' ;;
+        manjaro) printf '\uf312' ;;
+        nixos) printf '\uf313' ;;
+        nobara) printf '\uf380' ;;
+        opensuse-leap) printf '\uf37e' ;;
+        opensuse-tumbleweed) printf '\uf37d' ;;
+        opensuse*) printf '\uf314' ;;
+        pop) printf '\uf32a' ;;
+        raspios) printf '\uf315' ;;
+        rhel|redhat) printf '\uf316' ;;
+        rocky) printf '\uf32b' ;;
+        slackware) printf '\uf318' ;;
+        solus) printf '\uf32d' ;;
+        ubuntu) printf '\uf31b' ;;
+        void) printf '\uf32e' ;;
+        *)
+            case " $distro_like " in
+                *" debian "*) printf '\uf306' ;;
+                *" fedora "*|*" rhel "*) printf '\uf316' ;;
+                *" suse "*) printf '\uf314' ;;
+                *" arch "*) printf '\uf303' ;;
+                *) printf '\uf31a' ;;
+            esac
+            ;;
+    esac
+}
 
 _pl_escape() {
     # Escape Bash prompt non-printing sequences so line wrapping stays correct.
@@ -93,7 +143,7 @@ powerline_update_prompt() {
     PS1=''
     _PL_LAST_BG=''
 
-    icon_text=$PL_ICON
+    icon_text=${PL_ICON:-$(_pl_distro_icon)}
     user_text=${USER:-$(id -un 2>/dev/null)}
     user_fg=$PL_FG_USER
     user_bg=$PL_BG_USER
