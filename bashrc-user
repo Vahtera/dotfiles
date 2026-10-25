@@ -15,6 +15,6 @@ if [ -x "$HOME/.local/bin/welcome_banner.sh" ] && [[ $- == *i* ]]; then
     clear && "$HOME/.local/bin/welcome_banner.sh"
 fi
 
-if [ -x "$HOME/.config/bash/powerline" ] && [[ $- == *i* ]]; then
+if [ -r "$HOME/.config/bash/powerline" ] && [[ $- == *i* ]]; then
     source "$HOME/.config/bash/powerline"
 fi
