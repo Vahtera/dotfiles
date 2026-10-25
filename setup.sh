@@ -215,46 +215,35 @@ if fetch_file "bash_aliases" "$HOME/.bash_aliases"; then
     echo -e "  ${GREEN}✓ Copied .bash_aliases to $HOME/.bash_aliases${RESET}"
 fi
 
-# 3. Update .bashrc safely
+# 3. Update the managed Bash configuration and source it from .bashrc
 echo -e "\n${CYAN}[3/5] Updating $HOME/.bashrc...${RESET}"
 BASHRC="$HOME/.bashrc"
+BASH_CONFIG_DIR="$HOME/.config/bash"
+BASHRC_USER="$BASH_CONFIG_DIR/bashrc-user"
+mkdir -p "$BASH_CONFIG_DIR"
 touch "$BASHRC"
 
-MARKER="# --- Vahtera Dotfiles Configuration ---"
+if fetch_file "bashrc-user" "$BASHRC_USER"; then
+    echo -e "  ${GREEN}✓ Updated $BASHRC_USER${RESET}"
+fi
 
-if grep -qF "$MARKER" "$BASHRC"; then
-    echo -e "  ${YELLOW}⚠ Dotfiles configuration already exists in $BASHRC (skipping duplicate append).${RESET}"
+# Remove the previous managed block when upgrading an existing installation.
+if grep -qF '# --- Vahtera Dotfiles Configuration ---' "$BASHRC"; then
+    TEMP_BASHRC="$(mktemp)"
+    awk '
+        /^# --- Vahtera Dotfiles Configuration ---$/ { removing = 1; next }
+        removing && /^# --------------------------------------$/ { removing = 0; next }
+        !removing { print }
+    ' "$BASHRC" > "$TEMP_BASHRC"
+    mv "$TEMP_BASHRC" "$BASHRC"
+fi
+
+BASHRC_SOURCE='[[ -f "$HOME/.config/bash/bashrc-user" ]] && source "$HOME/.config/bash/bashrc-user"'
+if ! grep -qF "$BASHRC_SOURCE" "$BASHRC"; then
+    printf '\n%s\n' "$BASHRC_SOURCE" >> "$BASHRC"
+    echo -e "  ${GREEN}✓ Added the bashrc-user source line to $BASHRC${RESET}"
 else
-    cat << 'EOF' >> "$BASHRC"
-
-# --- Vahtera Dotfiles Configuration ---
-# Ensure local bin is in PATH dynamically for active user
-if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-    export PATH="$PATH:$HOME/.local/bin"
-fi
-
-# Initialize thefuck if installed
-if command -v thefuck &>/dev/null; then
-    eval "$(thefuck --alias)"
-fi
-
-# Initialize Homebrew if installed
-if [ -d "/home/linuxbrew/.linuxbrew" ]; then
-    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-fi
-
-# Run Welcome Banner on terminal launch
-if [ -x "$HOME/.local/bin/welcome_banner.sh" ] && [[ $- == *i* ]]; then
-    clear && "$HOME/.local/bin/welcome_banner.sh"
-fi
-
-# Source powerline config
-if [ -x "$HOME/.config/bash/powerline" ] && [[ $- == *i* ]]; then
-    source "$HOME/.config/bash/powerline"
-fi
-# --------------------------------------
-EOF
-    echo -e "  ${GREEN}✓ Appended custom setup block to $BASHRC${RESET}"
+    echo -e "  ${YELLOW}The bashrc-user source line already exists in $BASHRC.${RESET}"
 fi
 
 # 4. Deploy Conky configuration

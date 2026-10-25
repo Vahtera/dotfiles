@@ -1,0 +1,20 @@
+# Ensure local bin is in PATH dynamically for the active user.
+if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+    export PATH="$PATH:$HOME/.local/bin"
+fi
+
+if command -v thefuck &>/dev/null; then
+    eval "$(thefuck --alias)"
+fi
+
+if [ -d "/home/linuxbrew/.linuxbrew" ]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+
+if [ -x "$HOME/.local/bin/welcome_banner.sh" ] && [[ $- == *i* ]]; then
+    clear && "$HOME/.local/bin/welcome_banner.sh"
+fi
+
+if [ -x "$HOME/.config/bash/powerline" ] && [[ $- == *i* ]]; then
+    source "$HOME/.config/bash/powerline"
+fi
