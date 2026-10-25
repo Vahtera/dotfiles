@@ -63,7 +63,7 @@ _pl_add_segment() {
 
 _pl_finish_segments() {
     if [[ -n ${_PL_LAST_BG-} ]]; then
-        # Return to the terminal's default colours after the final segment.
+        PS1+="$(_pl_escape "\e[38;5;${_PL_LAST_BG}m\e[49m")"
         PS1+="$(_pl_escape "\e[0m")"
     fi
 }
