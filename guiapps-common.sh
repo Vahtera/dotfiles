@@ -5,6 +5,7 @@ set -euo pipefail
 PACKAGE_MANAGER="${1:?package manager is required}"
 FLATHUB_URL="https://flathub.org/repo/flathub.flatpakrepo"
 export PACKAGE_MANAGER FLATHUB_URL
+export SCRIPT_DIR
 FAILED_APPS=()
 
 run_privileged() {
