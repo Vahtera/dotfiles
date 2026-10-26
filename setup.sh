@@ -266,6 +266,15 @@ if fetch_file "powerline" "$POWERLINE_DIR/powerline"; then
     echo -e "  ${GREEN}✓ Copied powerline to $POWERLINE_DIR/${RESET}"
 fi
 
+# 4.75 Deploy Fastfetch configuration
+echo -e "\n${CYAN}[4.75/5] Deploying Fastfetch configuration...${RESET}"
+FASTFETCH_DIR="$HOME/.config/fastfetch"
+mkdir -p "$FASTFETCH_DIR"
+
+if fetch_file "config.jsonc" "$FASTFETCH_DIR/config.jsonc"; then
+    echo -e "  ${GREEN}✓ Copied config.jsonc to $FASTFETCH_DIR/${RESET}"
+fi
+
 # 5. Run the package installation script for the detected distro
 echo -e "\n${CYAN}[5/5] Package Installation Check...${RESET}"
 
