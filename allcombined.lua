@@ -2,7 +2,12 @@
 combines background bar and calendar functions
 ]]
 require 'cairo'
-require 'cairo_xlib'	-- cairo_xlib_surface_create lives in /usr/lib/conky/libcairo_xlib.so
+--require 'cairo_xlib'	-- cairo_xlib_surface_create lives in /usr/lib/conky/libcairo_xlib.so
+
+if not pcall(require, 'cairo_xlib') then
+  cairo_xlib_surface_create = cairo_xlib_surface_create or cairo_surface_create
+end
+
 require 'imlib2'
 
 -- Lua 5.1 compatibility: loadstring() was renamed to load() in Lua 5.2+
