@@ -2,11 +2,24 @@
 combines background bar and calendar functions
 ]]
 require 'cairo'
+pcall(require, 'cairo_xlib')
 
 local function create_context()
-local surface = conky_surface()
+local surface
+if type(conky_surface) == 'function' then
+surface = conky_surface()
+elseif conky_window and conky_window.display and conky_window.drawable and conky_window.visual and type(cairo_xlib_surface_create) == 'function' then
+surface = cairo_xlib_surface_create(conky_window.display, conky_window.drawable, conky_window.visual, conky_window.width, conky_window.height)
+end
 if not surface then return nil end
-return cairo_create(surface)
+local cr = cairo_create(surface)
+if type(conky_surface) == 'function' then return cr end
+return cr, surface
+end
+
+local function destroy_context(cr, surface)
+cairo_destroy(cr)
+if surface then cairo_surface_destroy(surface) end
 end
 
 function rgb_to_r_g_b(col_a)
@@ -14,7 +27,7 @@ return ((col_a[1] / 0x10000) % 0x100) / 255., ((col_a[1] / 0x100) % 0x100) / 255
 end
 
 function conky_gradbar(bartab)
-local cr = create_context()
+local cr, surface = create_context()
 if not cr then return "" end
 local updates=tonumber(conky_parse('${updates}'))
 if updates>5 then
@@ -76,14 +89,14 @@ colr=nil
 colg=nil
 colb=nil
 cola=nil
-cairo_destroy(cr)
+destroy_context(cr, surface)
 cr=nil
 return ""
 end-- end main function
 
 function conky_draw_bg(bgtab)
 if conky_window == nil then return "" end
-local cr = create_context()
+local cr, surface = create_context()
 if not cr then return "" end
 --#########################################################################################################
 --convert to table
@@ -144,14 +157,14 @@ end
 bgtab=nil
 w=nil
 h=nil
-cairo_destroy(cr)
+destroy_context(cr, surface)
 cr=nil
 return ""
 end-- end main function
 
 function conky_luaimage(imtab)
 if conky_window == nil then return "" end
-local cr = create_context()
+local cr, surface = create_context()
 if not cr then return "" end
 --#########################################################################################################
 local imtab=load("return" .. imtab)()
@@ -176,7 +189,7 @@ cairo_restore(cr)
 cairo_surface_destroy(image)
 --#########################################################################################################
 imtab=nil
-cairo_destroy(cr)
+destroy_context(cr, surface)
 cr=nil
 return ""
 end-- end main function
@@ -187,7 +200,7 @@ local textab=load("return" .. textab)()
 local tex_file=textab[6]
 local surface = cairo_image_surface_create_from_png(tostring(tex_file))
 local cw,ch = conky_window.width, conky_window.height
-local cr = create_context()
+local cr, cairo_surface = create_context()
 if not cr then
 cairo_surface_destroy(surface)
 return ""
@@ -238,6 +251,7 @@ textab=nil
 w=nil
 h=nil
 cairo_destroy(cr)
+if cairo_surface then cairo_surface_destroy(cairo_surface) end
 cairo_surface_destroy (surface)
 cr=nil
 return ""
@@ -245,7 +259,7 @@ end-- end main function
 
 function conky_luatext(txttab)--x,y,c,a,f,fs,txt,j ##################################################
 if conky_window == nil then return "" end
-local cr = create_context()
+local cr, surface = create_context()
 if not cr then return "" end
 --#########################################################################################################
 --convert to table
@@ -275,7 +289,7 @@ cairo_show_text (cr,txt)
 cairo_stroke (cr)
 --#########################################################################################################
 txttab=nil
-cairo_destroy(cr)
+destroy_context(cr, surface)
 cr=nil
 return ""
 end-- end main function

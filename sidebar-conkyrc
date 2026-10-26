@@ -98,7 +98,7 @@ ${offset 10}${font Good Times:size=12}${color pink}CPU ${color}${hr 2}${font}
 ${font}${color}${offset 10}${execi 86400 grep -m1 -oP '^model name\s+:\s\K(.*)' /proc/cpuinfo}
 ${offset 10}${color lightgrey}Temperature: ${if_existing /sys/class/hwmon/hwmon0/temp1_input}${eval ${hwmon 0 temp 1}}${else}${if_existing /sys/class/hwmon/hwmon1/temp1_input}${eval ${hwmon 1 temp 1}}${endif}${endif}°C
 # CPU0
-${offset 10}Avg. Load ${goto 70} : ${cpu cpu0}% ${lua gradbar {110, 170, "${cpu cpu0}", 100, 40, 2, 10, 1, 0xFFFFFF, 0.25, 0x00FF00, 1, 0xFFFF00, 1, 0xFF0000, 1}}${goto 230}${color}${freq 1} MHz
+${offset 10}Avg. Load ${goto 70} : ${cpu cpu0}% ${lua gradbar {110, 170, "${cpu cpu0}", 100, 40, 2, 10, 1, 0xFFFFFF, 0.25, 0x00FF00, 1, 0xFFFF00, 1, 0xFF0000, 1}}${alignr}${color}${freq 1} MHz
 #${offset 15}${cpugraph 25,303 000000 00FF00}
 
 #-----------------------Memory Load-----------------------
