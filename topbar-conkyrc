@@ -102,7 +102,7 @@ conky.config = {
 
 -- battery template
 
-    template0 = [[${if_existing /sys/class/power_supply/BAT0}${offset  85}BAT ${battery_bar 5,75 BAT0}${else}${if_existing /sys/class/power_supply/BAT1}${offset  85}BAT ${battery_bar 5,75 BAT1}${endif}${endif}]],
+	template0 = [[${if_existing /sys/class/power_supply/BAT0}BAT ${battery_bar 5,75 BAT0}${else}${if_existing /sys/class/power_supply/BAT1}BAT ${battery_bar 5,75 BAT1}${endif}${endif}]],
 
 -- time template
    template1 = '%k:%M'
@@ -119,14 +119,16 @@ if _VERSION == 'Lua 5.1' and math.floor(return_code/256) == 0 or
 end
 
 conky.text = [[
-${font clean:size=12}${color1}\
-${offset 200}CPU ${cpubar 5,75}\
-${offset  85}HDD ${fs_bar 3,75}${offset 85}MEM ${membar 5,75}\
-${template0}\
-${offset  85}SWP ${swapbar 5,75}
-##TIME##
-${font BirchStd:pixelsize=110}${color2}${alignc}${time %H:%M}${font}
-${voffset 10}${font BirchStd:pixelsize=45}${color3}${alignc}${time %A} | ${time %d} ${time %B}${font}
 
-${voffset 10}${color1}${alignc}${execi 3600 $HOME/.conky/moon_info.py}
+## Infobars Start
+${font clean:size=12}${color1}\
+${alignc}CPU ${color white}${cpubar 5,75}   HDD ${color white}${fs_bar 5,75 /}   MEM ${color white}${membar 5,75}   ${template0}   SWP ${color white}${swapbar 5,75}
+## Infobars End
+
+##TIME##
+${alignc}${font BirchStd:pixelsize=110}${color2}${time %H:%M}${font}
+${voffset 10}${alignc}${font BirchStd:pixelsize=45}${color3}${time %A} | ${time %d} ${time %B}${font}
+
+##Moon Phase##
+${voffset 10}${alignc}${color1}${execi 3600 $HOME/.conky/moon_info.py}
 ]];
