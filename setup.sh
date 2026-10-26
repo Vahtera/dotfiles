@@ -251,7 +251,7 @@ echo -e "\n${CYAN}[4/5] Deploying Conky configuration...${RESET}"
 CONKY_DIR="$HOME/.conky"
 mkdir -p "$CONKY_DIR"
 
-for filename in sidebar-conkyrc topbar-conkyrc moon_info.py conky-start.sh; do
+for filename in allcombined.lua sidebar-conkyrc topbar-conkyrc moon_info.py conky-start.sh; do
     if fetch_file "$filename" "$CONKY_DIR/$filename"; then
         echo -e "  ${GREEN}✓ Copied $filename to $CONKY_DIR/${RESET}"
     fi
