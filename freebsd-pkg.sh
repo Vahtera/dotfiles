@@ -25,9 +25,13 @@ fi
 
 if [[ "$EUID" -ne 0 ]]; then
     echo -e "${PURPLE}Elevated permissions are required to install packages.${RESET}"
+    if ! command -v doas &>/dev/null; then
+        echo -e "${YELLOW}doas is required to install packages. Exiting.${RESET}"
+        exit 1
+    fi
     echo -e "${CYAN_B}Please enter your password...${RESET}"
-    if ! sudo -v; then
-        echo -e "${YELLOW}Exiting, as sudo authentication failed.${RESET}"
+    if ! doas true; then
+        echo -e "${YELLOW}Exiting, as doas authentication failed.${RESET}"
         exit 1
     fi
 fi
@@ -36,7 +40,7 @@ run_privileged() {
     if [[ "$EUID" -eq 0 ]]; then
         "$@"
     else
-        sudo "$@"
+        doas "$@"
     fi
 }
 

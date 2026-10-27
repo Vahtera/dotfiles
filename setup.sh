@@ -49,6 +49,8 @@ fetch_file() {
 run_privileged() {
     if [ "$EUID" -eq 0 ]; then
         "$@"
+    elif [ "$(uname -s)" = FreeBSD ]; then
+        doas "$@"
     else
         sudo "$@"
     fi

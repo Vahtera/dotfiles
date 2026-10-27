@@ -11,6 +11,8 @@ FAILED_APPS=()
 run_privileged() {
     if [[ "$EUID" -eq 0 ]]; then
         "$@"
+    elif [[ "$PACKAGE_MANAGER" == pkg ]]; then
+        doas "$@"
     else
         sudo "$@"
     fi
