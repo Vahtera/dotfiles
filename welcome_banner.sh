@@ -35,9 +35,16 @@ welcome_greeting () {
     WELCOME_MSG="$greeting ${USER}!"
 
     if command -v lolcat &>/dev/null && command -v figlet &>/dev/null; then
-        echo "${WELCOME_MSG}" | figlet | lolcat
+        local terminal_width
+        terminal_width=$(tput cols 2>/dev/null)
+        if [[ ! "$terminal_width" =~ ^[0-9]+$ ]] || (( terminal_width == 0 )); then
+            terminal_width=${COLUMNS:-128}
+        fi
+        echo "${WELCOME_MSG}" | figlet -w "$terminal_width" | lolcat
+        echo -e "\n"
     else
         echo -e "${COLOR_P}${WELCOME_MSG}${RESET}\n"
+        echo -e "\n"
     fi
 }
 
