@@ -95,6 +95,16 @@ if ask "Would you like to upgrade currently installed packages?"; then
 fi
 
 if ask "Would you like to install listed apps?"; then
+    if package_installed terra-release; then
+        echo -e "${YELLOW}[Skipping]${LIGHT} Terra repository is already enabled.${RESET}"
+        skipped+=(terra-release)
+    elif run_privileged dnf install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' -y terra-release; then
+        installed+=(terra-release)
+    else
+        echo -e "${YELLOW}[Warning]${LIGHT} Could not enable the Terra repository.${RESET}"
+        failed+=(terra-release)
+    fi
+
     install_alternative eza exa
     install_alternative fastfetch neofetch
     install_alternative tealdeer tldr
