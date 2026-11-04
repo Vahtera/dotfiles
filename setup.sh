@@ -308,6 +308,12 @@ fi
 TEMP_PACKAGE_SCRIPT=""
 PACKAGE_EXEC=""
 if [ -n "$PACKAGE_SCRIPT" ]; then
+    if ! fetch_file "apps.list" "$LOCAL_BIN/apps.list" \
+        || ! fetch_file "apps-common.sh" "$LOCAL_BIN/apps-common.sh"; then
+        echo -e "${YELLOW}Could not install the shared app list and loader.${RESET}"
+        exit 1
+    fi
+
     if [ "$PACKAGE_SCRIPT" != "haiku-pkgman.sh" ]; then
         setup_ssh_server
     fi

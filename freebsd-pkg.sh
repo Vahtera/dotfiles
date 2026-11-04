@@ -9,6 +9,14 @@ CYAN_B='\033[1;96m'
 LIGHT='\x1b[2m'
 RESET='\033[0m'
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -r "$SCRIPT_DIR/apps-common.sh" ]]; then
+    SCRIPT_DIR="$HOME/.local/bin"
+fi
+if ! source "$SCRIPT_DIR/apps-common.sh"; then
+    exit 1
+fi
+
 PROMPT_TIMEOUT=15
 AUTO_YES=0
 if [[ " $* " == *" --auto-yes "* ]]; then
@@ -57,15 +65,6 @@ ask() {
     [[ "$REPLY" =~ ^[Yy]$ ]]
 }
 
-bsd_apps=(
-    git neovim ranger tmux wget zsh gh lynx elinks aria2 bat broot ctags
-    diff-so-fancy duf fzf hyperfine just jq most procs ripgrep sd thefuck tree
-    tokei trash-cli xsel zoxide qalc go python311 node bsdgames py311-pipx
-    rubygem-lolcat clamav cryptsetup gnupg git-crypt lynis openssl rkhunter
-    btop bmon ctop gping glances goaccess speedtest-cli wavemon sysbench
-    cowsay figlet nudoku trippy nvtop eza fastfetch tealdeer
-)
-
 installed=()
 skipped=()
 failed=()
@@ -78,16 +77,35 @@ if ask "Would you like to upgrade currently installed packages?"; then
     run_privileged pkg upgrade -y
 fi
 
+pkg_package_available() {
+    pkg search -e "$1" 2>/dev/null | grep -q .
+}
+
 if ask "Would you like to install listed apps?"; then
-    for app in "${bsd_apps[@]}"; do
-        if pkg info -e "$app" &>/dev/null; then
-            echo -e "${YELLOW}[Skipping]${LIGHT} $app is already installed${RESET}"
-            skipped+=("$app")
-        elif run_privileged pkg install -y "$app"; then
-            installed+=("$app")
+    for app_line in "${apps[@]}"; do
+        parse_app_alternatives "$app_line"
+        app="${APP_ALTERNATIVES[0]}"
+        installed_app=""
+        for candidate in "${APP_ALTERNATIVES[@]}"; do
+            if pkg info -e "$candidate" &>/dev/null; then
+                installed_app="$candidate"
+                break
+            fi
+        done
+        if [[ -n "$installed_app" ]]; then
+            echo -e "${YELLOW}[Skipping]${LIGHT} $installed_app is already installed${RESET}"
+            skipped+=("$app_line")
+        elif select_available_app pkg_package_available "$app_line"; then
+            app="$APP_SELECTED"
+            if run_privileged pkg install -y "$app"; then
+                installed+=("$app")
+            else
+                echo -e "${YELLOW}[Warning]${LIGHT} Could not install $app from pkg repositories.${RESET}"
+                failed+=("$app")
+            fi
         else
-            echo -e "${YELLOW}[Warning]${LIGHT} Could not install $app from pkg repositories.${RESET}"
-            failed+=("$app")
+            echo -e "${YELLOW}[Warning]${LIGHT} No package in '$app_line' was found in pkg repositories.${RESET}"
+            failed+=("$app_line")
         fi
     done
 

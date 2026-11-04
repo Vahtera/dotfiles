@@ -24,6 +24,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/Vahtera/dotfiles/main/se
 ## 📁 Included Files
 
 * `setup.sh` - Master installer. Configures `~/.bashrc`, places executables in `~/.local/bin/`, deploys `.bash_aliases`, and triggers package installation.
+* `apps.list` - Shared CLI package list used by all package installers. Each quoted line is one app; comma-separated names are tried in order, selecting the first available package.
+* `apps-common.sh` - Shared loader and ordered-alternative parser for `apps.list`.
 * `config.jsonc` - Fastfetch configuration deployed to `~/.config/fastfetch/config.jsonc` by `setup.sh`.
 * `debian-apt.sh` - APT & pipx package installer featuring smart fallback handling for package alternatives (`eza`/`exa`, `fastfetch`/`neofetch`).
 * `fedora-dnf.sh` - DNF package installer for Fedora and related distributions.

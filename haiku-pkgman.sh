@@ -9,6 +9,14 @@ CYAN_B='\033[1;96m'
 LIGHT='\x1b[2m'
 RESET='\033[0m'
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -r "$SCRIPT_DIR/apps-common.sh" ]]; then
+    SCRIPT_DIR="$HOME/.local/bin"
+fi
+if ! source "$SCRIPT_DIR/apps-common.sh"; then
+    exit 1
+fi
+
 PROMPT_TIMEOUT=15
 AUTO_YES=0
 if [[ " $* " == *" --auto-yes "* ]]; then
@@ -53,16 +61,6 @@ ask() {
     [[ "$REPLY" =~ ^[Yy]$ ]]
 }
 
-haiku_apps=(
-    git neovim ranger tmux wget zsh
-    lynx elinks jq tree ctags most qalc
-    bat fzf ripgrep zoxide aria2 hyperfine just
-    golang nodejs npm python3
-    gnupg openssl git-crypt clamav
-    btop bmon glances goaccess sysbench
-    cowsay figlet lolcat wordgrinder nudoku
-)
-
 installed=()
 skipped=()
 failed=()
@@ -81,39 +79,38 @@ package_installed() {
 }
 
 install_package() {
-    local package="$1"
-    if package_installed "$package"; then
-        echo -e "${YELLOW}[Skipping]${LIGHT} $package is already installed${RESET}"
-        skipped+=("$package")
-    elif run_privileged pkgman install -y "$package"; then
-        installed+=("$package")
+    local app_line="$1" candidate installed_app=""
+    parse_app_alternatives "$app_line"
+    for candidate in "${APP_ALTERNATIVES[@]}"; do
+        if package_installed "$candidate"; then
+            installed_app="$candidate"
+            break
+        fi
+    done
+    if [[ -n "$installed_app" ]]; then
+        echo -e "${YELLOW}[Skipping]${LIGHT} $installed_app is already installed${RESET}"
+        skipped+=("$app_line")
+    elif select_available_app haiku_package_available "$app_line"; then
+        candidate="$APP_SELECTED"
+        if run_privileged pkgman install -y "$candidate"; then
+            installed+=("$candidate")
+        else
+            echo -e "${YELLOW}[Warning]${LIGHT} Could not install $candidate from Haiku repositories.${RESET}"
+            failed+=("$candidate")
+        fi
     else
-        echo -e "${YELLOW}[Warning]${LIGHT} Could not install $package from Haiku repositories.${RESET}"
-        failed+=("$package")
+        echo -e "${YELLOW}[Warning]${LIGHT} No package in '$app_line' was found in Haiku repositories.${RESET}"
+        failed+=("$app_line")
     fi
 }
 
-install_alternative() {
-    local primary="$1"
-    local fallback="$2"
-    if package_installed "$primary" || package_installed "$fallback"; then
-        echo -e "${YELLOW}[Skipping]${LIGHT} Either $primary or $fallback is already installed.${RESET}"
-        skipped+=("$primary/$fallback")
-    elif run_privileged pkgman install -y "$primary"; then
-        installed+=("$primary")
-    elif run_privileged pkgman install -y "$fallback"; then
-        installed+=("$fallback")
-    else
-        echo -e "${YELLOW}[Warning]${LIGHT} Neither $primary nor $fallback could be installed from Haiku repositories.${RESET}"
-        failed+=("$primary/$fallback")
-    fi
+haiku_package_available() {
+    pkgman search -s name "$1" 2>/dev/null \
+        | awk -v package="$1" '$2 == package { found = 1 } END { exit !found }'
 }
 
 if ask "Would you like to install listed apps?"; then
-    install_alternative eza exa
-    install_alternative fastfetch neofetch
-    install_alternative tealdeer tldr
-    for app in "${haiku_apps[@]}"; do
+    for app in "${apps[@]}"; do
         install_package "$app"
     done
 

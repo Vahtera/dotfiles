@@ -12,6 +12,14 @@ CYAN_B='\033[1;96m'
 LIGHT='\x1b[2m'
 RESET='\033[0m'
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -r "$SCRIPT_DIR/apps-common.sh" ]]; then
+    SCRIPT_DIR="$HOME/.local/bin"
+fi
+if ! source "$SCRIPT_DIR/apps-common.sh"; then
+    exit 1
+fi
+
 PROMPT_TIMEOUT=15
 
 if [[ $* == *"--auto-yes"* ]]; then
@@ -71,38 +79,10 @@ ensure_spotify_apt_key() {
 
 ensure_spotify_apt_key || exit 1
 
-install_alternative() {
-    local primary="$1"
-    local fallback="$2"
-    
-    if command -v "$primary" &>/dev/null || command -v "$fallback" &>/dev/null; then
-        echo -e "${YELLOW}[Skipping]${LIGHT} Either $primary or $fallback is already installed.${RESET}"
-        return 0
-    fi
-
-    if apt-cache show "$primary" &>/dev/null 2>&1; then
-        echo -e "${PURPLE}[Installing]${LIGHT} Installing primary package: $primary...${RESET}"
-        sudo apt install -y "$primary"
-    elif apt-cache show "$fallback" &>/dev/null 2>&1; then
-        echo -e "${PURPLE}[Installing]${LIGHT} Primary package '$primary' not found. Installing fallback: $fallback...${RESET}"
-        sudo apt install -y "$fallback"
-    else
-        echo -e "${YELLOW}[Warning] Neither $primary nor $fallback could be located in apt repositories.${RESET}"
-    fi
+apt_package_available() {
+    apt-cache show "$1" 2>/dev/null \
+        | awk -v package="$1" '$1 == "Package:" && $2 == package { found = 1 } END { exit !found }'
 }
-
-debian_apps=(
-    'git' 'neovim' 'ranger' 'tmux' 'wget' 'zsh' 'pipx' 'gh' 'lynx' 'elinks'
-    'aria2' 'bat' 'broot' 'ctags' 'diff-so-fancy' 'duf' 'fzf' 'hyperfine' 
-    'just' 'jq' 'most' 'procs' 'ripgrep' 'scrot' 'sd' 'thefuck' 
-    'tree' 'tokei' 'trash-cli' 'xsel' 'zoxide' 'qalc'
-    'golang' 'nodejs' 'npm' 'python3-full'
-    'clamav' 'cryptsetup' 'gnupg' 'git-crypt' 'lynis' 'openssl' 'rkhunter'
-    'btop' 'bmon' 'ctop' 'gping' 'glances' 'goaccess' 'speedtest-cli' 'wavemon' 'sysbench'
-    'cowsay' 'figlet' 'lolcat' 'wordgrinder' 'nudoku' 'trippy' 'nvtop'
-)
-
-python_apps=( 'epy-reader' 'lazygit' 'tuir' )
 
 apt_installed=()
 apt_skipped=()
@@ -137,31 +117,33 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo -e "${PURPLE}Starting APT installation...${RESET}"
     
-    echo -e "${PURPLE}Checking package alternatives...${RESET}"
-    install_alternative "eza" "exa"
-    install_alternative "fastfetch" "neofetch"
-    install_alternative "tealdeer" "tldr"
-    install_alternative "bsd-games" "bsdgames"
-    
-    for app in "${debian_apps[@]}"; do
-        if command -v "$app" &>/dev/null; then
-            echo -e "${YELLOW}[Skipping]${LIGHT} $app is already installed${RESET}"
-            apt_skipped+=("$app")
-        elif command -v flatpak &>/dev/null && flatpak list --columns=ref 2>/dev/null | grep -q "$app"; then
-            echo -e "${YELLOW}[Skipping]${LIGHT} $app is already installed via Flatpak${RESET}"
-            apt_skipped+=("$app")
-        else
-            if apt-cache show "$app" &>/dev/null 2>&1; then
-                echo -e "${PURPLE}[Installing]${LIGHT} Downloading $app...${RESET}"
-                if sudo apt install -y "$app"; then
-                    apt_installed+=("$app")
-                else
-                    apt_failed+=("$app")
-                fi
-            else
-                echo -e "${YELLOW}[Notice]${LIGHT} Package '$app' not found in apt repos, skipping.${RESET}"
-                apt_unavailable+=("$app")
+    for app_line in "${apps[@]}"; do
+        parse_app_alternatives "$app_line"
+        app="${APP_ALTERNATIVES[0]}"
+        installed_app=""
+        for candidate in "${APP_ALTERNATIVES[@]}"; do
+            if command -v "$candidate" &>/dev/null; then
+                installed_app="$candidate"
+                break
+            elif command -v flatpak &>/dev/null && flatpak list --columns=ref 2>/dev/null | grep -q "$candidate"; then
+                installed_app="$candidate"
+                break
             fi
+        done
+        if [[ -n "$installed_app" ]]; then
+            echo -e "${YELLOW}[Skipping]${LIGHT} $installed_app is already installed${RESET}"
+            apt_skipped+=("$app_line")
+        elif select_available_app apt_package_available "$app_line"; then
+            app="$APP_SELECTED"
+            echo -e "${PURPLE}[Installing]${LIGHT} Downloading $app...${RESET}"
+            if sudo apt install -y "$app"; then
+                apt_installed+=("$app")
+            else
+                apt_failed+=("$app")
+            fi
+        else
+            echo -e "${YELLOW}[Notice]${LIGHT} No package in '$app_line' was found in apt repos, skipping.${RESET}"
+            apt_unavailable+=("$app_line")
         fi
     done
 

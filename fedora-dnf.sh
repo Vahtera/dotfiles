@@ -9,6 +9,14 @@ CYAN_B='\033[1;96m'
 LIGHT='\x1b[2m'
 RESET='\033[0m'
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -r "$SCRIPT_DIR/apps-common.sh" ]]; then
+    SCRIPT_DIR="$HOME/.local/bin"
+fi
+if ! source "$SCRIPT_DIR/apps-common.sh"; then
+    exit 1
+fi
+
 PROMPT_TIMEOUT=15
 AUTO_YES=0
 if [[ " $* " == *" --auto-yes "* ]]; then
@@ -53,34 +61,14 @@ ask() {
     [[ "$REPLY" =~ ^[Yy]$ ]]
 }
 
-install_alternative() {
-    local primary="$1"
-    local fallback="$2"
-    if command -v "$primary" &>/dev/null || command -v "$fallback" &>/dev/null; then
-        echo -e "${YELLOW}[Skipping]${LIGHT} Either $primary or $fallback is already installed.${RESET}"
-    elif run_privileged dnf install -y "$primary"; then
-        installed+=("$primary")
-    elif run_privileged dnf install -y "$fallback"; then
-        installed+=("$fallback")
-    else
-        echo -e "${YELLOW}[Warning] Neither $primary nor $fallback could be installed from DNF repositories.${RESET}"
-        failed+=("$primary/$fallback")
-    fi
+dnf_package_available() {
+    dnf -q list --available "$1" 2>/dev/null \
+        | awk -v package="$1" '$1 == package || index($1, package ".") == 1 { found = 1 } END { exit !found }'
 }
 
 package_installed() {
     rpm -q "$1" &>/dev/null
 }
-
-fedora_apps=(
-    git neovim ranger tmux wget zsh pipx gh lynx elinks aria2 bat broot ctags
-    diff-so-fancy duf fzf hyperfine just jq most procs ripgrep scrot sd thefuck
-    tree tokei trash-cli xsel zoxide qalc golang nodejs npm python3
-    clamav cryptsetup gnupg git-crypt lynis openssl rkhunter btop bmon ctop
-    gping glances goaccess speedtest-cli wavemon sysbench cowsay figlet lolcat
-    wordgrinder nudoku nvtop bsd-games trippy
-)
-python_apps=(epy-reader lazygit tuir)
 
 installed=()
 skipped=()
@@ -105,21 +93,33 @@ if ask "Would you like to install listed apps?"; then
         failed+=(terra-release)
     fi
 
-    install_alternative eza exa
-    install_alternative fastfetch neofetch
-    install_alternative tealdeer tldr
-    for app in "${fedora_apps[@]}"; do
-        if package_installed "$app"; then
-            echo -e "${YELLOW}[Skipping]${LIGHT} $app is already installed${RESET}"
-            skipped+=("$app")
-        elif command -v flatpak &>/dev/null && flatpak list --columns=ref 2>/dev/null | grep -q "$app"; then
-            echo -e "${YELLOW}[Skipping]${LIGHT} $app is already installed via Flatpak${RESET}"
-            skipped+=("$app")
-        elif run_privileged dnf install -y "$app"; then
-            installed+=("$app")
+    for app_line in "${apps[@]}"; do
+        parse_app_alternatives "$app_line"
+        app="${APP_ALTERNATIVES[0]}"
+        installed_app=""
+        for candidate in "${APP_ALTERNATIVES[@]}"; do
+            if package_installed "$candidate"; then
+                installed_app="$candidate"
+                break
+            elif command -v flatpak &>/dev/null && flatpak list --columns=ref 2>/dev/null | grep -q "$candidate"; then
+                installed_app="$candidate"
+                break
+            fi
+        done
+        if [[ -n "$installed_app" ]]; then
+            echo -e "${YELLOW}[Skipping]${LIGHT} $installed_app is already installed${RESET}"
+            skipped+=("$app_line")
+        elif select_available_app dnf_package_available "$app_line"; then
+            app="$APP_SELECTED"
+            if run_privileged dnf install -y "$app"; then
+                installed+=("$app")
+            else
+                echo -e "${YELLOW}[Warning]${LIGHT} Could not install $app from DNF repositories.${RESET}"
+                failed+=("$app")
+            fi
         else
-            echo -e "${YELLOW}[Warning]${LIGHT} Could not install $app from DNF repositories.${RESET}"
-            failed+=("$app")
+            echo -e "${YELLOW}[Warning]${LIGHT} No package in '$app_line' was found in DNF repositories.${RESET}"
+            failed+=("$app_line")
         fi
     done
 
