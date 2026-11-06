@@ -64,6 +64,7 @@ apps=(
     'bsd-games, bsdgames'
     'ncdu'
     'dust'
+    'gcc'
 )
 
 python_apps=(
