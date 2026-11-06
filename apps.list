@@ -65,6 +65,7 @@ apps=(
     'ncdu'
     'dust'
     'gcc'
+    'byobu'
 )
 
 python_apps=(
