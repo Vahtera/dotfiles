@@ -138,6 +138,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
             echo -e "${PURPLE}[Installing]${LIGHT} Downloading $app...${RESET}"
             if sudo apt install -y "$app"; then
                 apt_installed+=("$app")
+                mark_go_installed "$app"
             else
                 apt_failed+=("$app")
             fi
@@ -217,3 +218,4 @@ print_list "pipx failed" "${pipx_failed[@]}"
 
 echo
 echo -e "${PURPLE}Finished installing / updating packages.${RESET}"
+install_wordterm_if_go_installed

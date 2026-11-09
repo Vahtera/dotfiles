@@ -99,6 +99,7 @@ if ask "Would you like to install listed apps?"; then
             app="$APP_SELECTED"
             if run_privileged pkg install -y "$app"; then
                 installed+=("$app")
+                mark_go_installed "$app"
             else
                 echo -e "${YELLOW}[Warning]${LIGHT} Could not install $app from pkg repositories.${RESET}"
                 failed+=("$app")
@@ -149,3 +150,4 @@ print_list "pkg installed" "${installed[@]}"
 print_list "pkg skipped (already installed)" "${skipped[@]}"
 print_list "pkg failed" "${failed[@]}"
 echo -e "\n${PURPLE}Finished installing / updating packages.${RESET}"
+install_wordterm_if_go_installed

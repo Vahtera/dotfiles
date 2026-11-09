@@ -11,6 +11,30 @@ if [[ ! -r "$APPS_FILE" ]]; then
 fi
 source "$APPS_FILE"
 
+GO_INSTALLED=0
+
+mark_go_installed() {
+    if [[ "$1" == "go" || "$1" == "golang" ]]; then
+        GO_INSTALLED=1
+    fi
+}
+
+install_wordterm_if_go_installed() {
+    [[ "$GO_INSTALLED" -eq 1 ]] || return 0
+
+    local installer="$APPS_COMMON_DIR/install-wordterm.sh"
+    if [[ ! -f "$installer" ]]; then
+        installer="$HOME/.local/bin/install-wordterm.sh"
+    fi
+    if [[ ! -f "$installer" ]]; then
+        echo "Wordterm installer not found; skipping Wordterm installation." >&2
+        return 1
+    fi
+
+    echo "Go was installed; installing Wordterm..."
+    bash "$installer"
+}
+
 parse_app_alternatives() {
     local part
     local -a parsed=()

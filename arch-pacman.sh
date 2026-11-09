@@ -115,6 +115,7 @@ if ask "Would you like to install listed apps?"; then
             app="$(arch_package_name "$APP_SELECTED")"
             if run_privileged pacman -S --needed --noconfirm "$app"; then
                 installed+=("$app")
+                mark_go_installed "$app"
             else
                 echo -e "${YELLOW}[Warning]${LIGHT} Could not install $app from Pacman repositories.${RESET}"
                 failed+=("$app")
@@ -176,3 +177,4 @@ print_list "Pacman installed" "${installed[@]}"
 print_list "Pacman skipped (already installed)" "${skipped[@]}"
 print_list "Pacman failed or unavailable" "${failed[@]}"
 echo -e "\n${PURPLE}Finished installing / updating packages.${RESET}"
+install_wordterm_if_go_installed

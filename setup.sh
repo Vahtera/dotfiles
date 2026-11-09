@@ -198,6 +198,11 @@ if fetch_file "run_benchmark.sh" "$LOCAL_BIN/run_benchmark.sh"; then
     echo -e "  ${GREEN}✓ Installed run_benchmark.sh${RESET}"
 fi
 
+if fetch_file "install-wordterm.sh" "$LOCAL_BIN/install-wordterm.sh"; then
+    chmod +x "$LOCAL_BIN/install-wordterm.sh"
+    echo -e "  ${GREEN}✓ Installed install-wordterm.sh${RESET}"
+fi
+
 if [ -c /dev/tty ]; then
     read -r -p 'Disable automatically learned IPv6 DNS? (Y/n) ' REPLY < /dev/tty || REPLY=""
 else

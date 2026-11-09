@@ -94,6 +94,7 @@ install_package() {
         candidate="$APP_SELECTED"
         if run_privileged pkgman install -y "$candidate"; then
             installed+=("$candidate")
+            mark_go_installed "$candidate"
         else
             echo -e "${YELLOW}[Warning]${LIGHT} Could not install $candidate from Haiku repositories.${RESET}"
             failed+=("$candidate")
@@ -150,3 +151,4 @@ print_list "pkgman installed" "${installed[@]}"
 print_list "pkgman skipped (already installed)" "${skipped[@]}"
 print_list "pkgman failed" "${failed[@]}"
 echo -e "\n${PURPLE}Finished installing / updating packages.${RESET}"
+install_wordterm_if_go_installed

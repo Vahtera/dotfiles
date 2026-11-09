@@ -102,6 +102,7 @@ if ask "Would you like to install listed apps?"; then
             app="$APP_SELECTED"
             if run_privileged xbps-install -y "$app"; then
                 installed+=("$app")
+                mark_go_installed "$app"
             else
                 echo -e "${YELLOW}[Warning]${LIGHT} Could not install $app from XBPS repositories.${RESET}"
                 failed+=("$app")
@@ -162,4 +163,5 @@ echo -e "${PURPLE}========================================${RESET}"
 print_list "XBPS installed" "${installed[@]}"
 print_list "XBPS skipped (already installed)" "${skipped[@]}"
 print_list "XBPS failed" "${failed[@]}"
+install_wordterm_if_go_installed
 echo -e "\n${PURPLE}Finished installing / updating packages.${RESET}"

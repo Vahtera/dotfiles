@@ -36,6 +36,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/Vahtera/dotfiles/main/se
 * `guiapps-*.sh` - Manual GUI app installers for supported systems. `setup.sh` installs the matching script and its helper, but never runs it. Start it with `guiapps-apt.sh`, `guiapps-dnf.sh`, `guiapps-xbps.sh`, or `guiapps-pkg.sh` from `~/.local/bin/`.
 * `guiapps-common.sh` - Shared GUI app installation logic, including Flatpak/Flathub setup and Kitty configuration/font installation.
 * `setup-browser.sh` - Manually downloads and unpacks the latest Chrome build of Authenticator - 2FA, then opens the Konode Chrome Web Store listing in Helium for approval. `setup.sh` installs this helper but never runs it; run it later with `~/.local/bin/setup-browser.sh`.
+* `install-wordterm.sh` - Builds Wordterm from source and links it into `~/.local/bin/` after a package installer successfully installs Go.
 * `welcome_banner.sh` - Interactive login greeting script displaying system stats, IP address, and weather.
 * `run_benchmark.sh` - Multi-core & single-core CPU benchmarking tool powered by `sysbench`.
 * `.bash_aliases` - Custom CLI shortcuts dynamically configured to your installed tools.
