@@ -66,6 +66,8 @@ apps=(
     'dust'
     'gcc'
     'byobu'
+    'smem'
+    'cmatrix'
 )
 
 python_apps=(
