@@ -82,6 +82,7 @@ setup_ssh_server() {
 
     case "$PACKAGE_SCRIPT" in
         debian-apt.sh) ssh_service="ssh" ;;
+        arch-pacman.sh) ssh_package="openssh" ;;
         void-xbps.sh) ssh_package="openssh" ;;
         freebsd-pkg.sh) ssh_package="openssh" ;;
     esac
@@ -90,6 +91,7 @@ setup_ssh_server() {
         echo -e "${CYAN}Installing SSH server ($ssh_package)...${RESET}"
         case "$PACKAGE_SCRIPT" in
             debian-apt.sh) run_privileged apt install -y "$ssh_package" ;;
+            arch-pacman.sh) run_privileged pacman -S --needed --noconfirm "$ssh_package" ;;
             fedora-dnf.sh) run_privileged dnf install -y "$ssh_package" ;;
             void-xbps.sh) run_privileged xbps-install -y "$ssh_package" ;;
             freebsd-pkg.sh) run_privileged pkg install -y "$ssh_package" ;;
@@ -287,6 +289,7 @@ if [ -r "$OS_RELEASE_FILE" ]; then
     DISTRO_LIKE=" ${ID_LIKE,,} "
 
     case "$DISTRO_ID" in
+        arch) PACKAGE_SCRIPT="arch-pacman.sh" ;;
         debian|ubuntu|linuxmint|pop|raspbian|kali) PACKAGE_SCRIPT="debian-apt.sh" ;;
         fedora|rhel|centos|rocky|almalinux|nobara) PACKAGE_SCRIPT="fedora-dnf.sh" ;;
         freebsd) PACKAGE_SCRIPT="freebsd-pkg.sh" ;;
@@ -294,6 +297,7 @@ if [ -r "$OS_RELEASE_FILE" ]; then
         haiku) PACKAGE_SCRIPT="haiku-pkgman.sh" ;;
         *)
             case "$DISTRO_LIKE" in
+                *" arch "*) PACKAGE_SCRIPT="arch-pacman.sh" ;;
                 *" debian "*|*" ubuntu "*) PACKAGE_SCRIPT="debian-apt.sh" ;;
                 *" fedora "*|*" rhel "*|*" centos "*) PACKAGE_SCRIPT="fedora-dnf.sh" ;;
             esac

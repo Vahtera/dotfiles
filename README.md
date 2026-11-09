@@ -8,7 +8,7 @@ Repository: [https://github.com/Vahtera/dotfiles](https://github.com/Vahtera/dot
 
 ## ⚡ Quick Start
 
-Execute via command line on a supported Debian-based, Fedora-based, Void Linux, FreeBSD, or Haiku installation:
+Execute via command line on a supported Arch-based, Debian-based, Fedora-based, Void Linux, FreeBSD, or Haiku installation:
 
 ```bash
 git clone https://github.com/Vahtera/dotfiles.git ~/.dotfiles && cd ~/.dotfiles && ./setup.sh
@@ -26,6 +26,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/Vahtera/dotfiles/main/se
 * `setup.sh` - Master installer. Configures `~/.bashrc`, places executables in `~/.local/bin/`, deploys `.bash_aliases`, and triggers package installation.
 * `apps.list` - Shared CLI package list used by all package installers. Each quoted line is one app; comma-separated names are tried in order, selecting the first available package.
 * `apps-common.sh` - Shared loader and ordered-alternative parser for `apps.list`.
+* `arch-pacman.sh` - Pacman package installer for Arch Linux and Arch-based distributions.
 * `config.jsonc` - Fastfetch configuration deployed to `~/.config/fastfetch/config.jsonc` by `setup.sh`.
 * `debian-apt.sh` - APT & pipx package installer featuring smart fallback handling for package alternatives (`eza`/`exa`, `fastfetch`/`neofetch`).
 * `fedora-dnf.sh` - DNF package installer for Fedora and related distributions.
