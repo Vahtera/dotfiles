@@ -70,6 +70,7 @@ apps=(
     'cmatrix'
     'build-essential'
     'lsd'
+    'ttyd'
 )
 
 python_apps=(
