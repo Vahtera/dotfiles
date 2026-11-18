@@ -69,6 +69,7 @@ apps=(
     'smem'
     'cmatrix'
     'build-essential'
+    'lsd'
 )
 
 python_apps=(
