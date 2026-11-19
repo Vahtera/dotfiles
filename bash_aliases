@@ -1,6 +1,9 @@
 # --- BASH / ZSH Shell Aliases ---
 
-if command -v eza &>/dev/null; then
+if command -v lsd &>/dev/null; then
+    alias ls='lsd -1X --group-directories-first'
+    alias ll='lsd -lahX --group-directories-first'
+elif command -v eza &>/dev/null; then
     alias ls='eza -1 -F --long --git --classify --sort=type'
     alias ll='eza --long --all --header --git --classify --sort=type'
     alias tree='eza -1 -F --tree'
