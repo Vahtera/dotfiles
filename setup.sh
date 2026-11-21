@@ -316,16 +316,17 @@ mkdir -p "$BASH_CONFIG_DIR"
 touch "$BASHRC"
 
 # Install ble.sh if it is not already installed
-if [ -f "$HOME/.local/share/blesh/ble.sh" ]
-then
-    echo -e "  ${YELLOW}ble.sh is already installed; skipping installation.${RESET}"
-else
-    echo -e "  ${CYAN}Installing ble.sh...${RESET}"
-    curl -L https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz | tar xJf -
-    mkdir -p "$HOME/.local/share/blesh"
-    mv ble-nightly/ble.sh "$HOME/.local/share/blesh/ble.sh"
-    rm -rf ble-nightly
-fi
+install_blesh() {
+    [ -f "$HOME/.local/share/blesh/ble.sh" ] && return 0
+    command -v xz >/dev/null 2>&1 || { echo "xz is required for ble.sh" >&2; return 1; }
+    local tmp rc=0; tmp="$(mktemp -d)" || return 1
+    curl -fsSL -o "$tmp/ble.tar.xz" \
+        https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz \
+        && tar xJf "$tmp/ble.tar.xz" -C "$tmp" \
+        && bash "$tmp/ble-nightly/ble.sh" --install "$HOME/.local/share" || rc=1
+    rm -rf "$tmp"; return $rc
+}
+install_blesh || echo -e "  ${YELLOW}ble.sh installation failed; continuing.${RESET}"
 
 if fetch_file "bashrc-user" "$BASHRC_USER"; then
     echo -e "  ${GREEN}✓ Updated $BASHRC_USER${RESET}"
