@@ -225,6 +225,15 @@ if [[ ! $REPLY =~ ^[Nn]$ ]]; then
     fi
 fi
 
+# 1.1 Download and install correct Nerdfont for the system
+echo -e "\n${CYAN}[1.1/5] Installing Nerd Font...${RESET}"
+if fetch_file "install-nerdfont.sh" "$LOCAL_BIN/install-nerdfont.sh"; then
+    chmod +x "$LOCAL_BIN/install-nerdfont.sh"
+    bash "$LOCAL_BIN/install-nerdfont.sh"
+else
+    echo -e "  ${YELLOW}Could not fetch install-nerdfont.sh; skipping Nerd Font installation.${RESET}"
+fi
+
 # 2. Deploy .bash_aliases for bash and zsh
 echo -e "\n${CYAN}[2/5] Deploying .bash_aliases...${RESET}"
 if fetch_file "bash_aliases" "$HOME/.bash_aliases"; then
