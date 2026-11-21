@@ -1,0 +1,16 @@
+source ~/.zoxide.nu
+
+$env.config.show_banner = false
+$env.config.buffer_editor = "nano"
+
+oh-my-posh init nu --config ~/.config/ohmyposh/anna.omp.json
+
+$env.config.render_right_prompt_on_last_line = true
+$env.PROMPT_INDICATOR = ""
+$env.PROMPT_INDICATOR_VI_INSERT = ""
+$env.PROMPT_INDICATOR_VI_NORMAL = ""
+
+source ~/.config/nushell/aliases.nu
+
+clear
+fastfetch --logo none

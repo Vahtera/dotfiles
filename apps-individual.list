@@ -1,3 +1,0 @@
-# list of apps to install via individual methods:
-
-croc = 'curl https://getcroc.com | bash'

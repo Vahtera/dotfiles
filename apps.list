@@ -35,13 +35,11 @@ apps=(
     'nodejs, node'
     'npm'
     'python3-full, python3, python311'
-    'clamav'
     'cryptsetup'
     'gnupg'
     'git-crypt'
     'lynis'
     'openssl'
-    'rkhunter'
     'btop'
     'bmon'
     'ctop'
@@ -71,6 +69,8 @@ apps=(
     'build-essential'
     'lsd'
     'ttyd'
+    'nushell'
+    'mc'
 )
 
 python_apps=(
