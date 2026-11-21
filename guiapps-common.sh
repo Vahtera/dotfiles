@@ -282,12 +282,7 @@ setup_kitty_config() {
     else
         echo "Keeping existing Kitty config: $config_dir/kitty.conf"
     fi
-
-    install -m 0644 "$SCRIPT_DIR/lucon.ttf" "$font_dir/lucon.ttf"
-    if command -v fc-cache >/dev/null 2>&1; then
-        fc-cache -f "$font_dir"
-    fi
-    echo "Installed Lucon font in $font_dir/lucon.ttf"
+    
 }
 
 install_ge_proton() {

@@ -1,3 +1,6 @@
+>[!NOTE]
+>This will automatically install OpenSSH Server and open up port 22. Intended for personal use only. Just FYI.
+
 # 🐧 Vahtera Dotfiles & System Setup
 
 A dynamic, automated dotfiles and benchmarking suite optimized for Linux distro-hopping on both **x86** and **ARM** hardware.
