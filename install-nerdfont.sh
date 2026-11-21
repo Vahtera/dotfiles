@@ -8,8 +8,6 @@ NF_VERSION="v3.5.1"
 NERD_FONTS=(
   Meslo
   FiraMono
-  Terminus
-  OpenDyslexic
 )
 
 FONT_ROOT="$HOME/.local/share/fonts/NerdFonts"
