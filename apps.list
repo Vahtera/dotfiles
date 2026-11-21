@@ -63,6 +63,7 @@ apps=(
     'ncdu'
     'dust'
     'gcc'
+    'cmake'
     'byobu'
     'smem'
     'cmatrix'

@@ -315,6 +315,18 @@ BASHRC_USER="$BASH_CONFIG_DIR/bashrc-user"
 mkdir -p "$BASH_CONFIG_DIR"
 touch "$BASHRC"
 
+# Install ble.sh if it is not already installed
+if [ -f "$HOME/.local/share/blesh/ble.sh" ]
+then
+    echo -e "  ${YELLOW}ble.sh is already installed; skipping installation.${RESET}"
+else
+    echo -e "  ${CYAN}Installing ble.sh...${RESET}"
+    curl -L https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz | tar xJf -
+    mkdir -p "$HOME/.local/share/blesh"
+    mv ble-nightly/ble.sh "$HOME/.local/share/blesh/ble.sh"
+    rm -rf ble-nightly
+fi
+
 if fetch_file "bashrc-user" "$BASHRC_USER"; then
     echo -e "  ${GREEN}✓ Updated $BASHRC_USER${RESET}"
 fi
