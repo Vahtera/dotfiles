@@ -434,6 +434,15 @@ else
     echo -e "  ${YELLOW}Unsupported or undetected operating system; skipping package installation.${RESET}"
 fi
 
+# 6. Install extra CLI tools from install-extra.sh
+if fetch_file "install-extra.sh" "$LOCAL_BIN/install-extra.sh"; then
+    chmod +x "$LOCAL_BIN/install-extra.sh"
+    echo -e "\n${CYAN}[6/5] Installing extra CLI tools...${RESET}"
+    bash "$LOCAL_BIN/install-extra.sh"
+else
+    echo -e "  ${YELLOW}Could not fetch install-extra.sh; skipping extra CLI tools installation.${RESET}"
+fi 
+
 # Cleanup downloaded installer if created
 if [ -n "$TEMP_PACKAGE_SCRIPT" ] && [ -f "$TEMP_PACKAGE_SCRIPT" ]; then
     rm -f "$TEMP_PACKAGE_SCRIPT"
