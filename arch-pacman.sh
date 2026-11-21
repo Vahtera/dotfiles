@@ -103,7 +103,7 @@ if ask "Would you like to install listed apps?"; then
             elif command -v "$candidate" &>/dev/null; then
                 installed_app="$candidate"
                 break
-            elif command -v flatpak &>/dev/null && flatpak list --columns=ref 2>/dev/null | grep -q "$candidate"; then
+            elif flatpak_app_installed "$candidate"; then
                 installed_app="$candidate"
                 break
             fi

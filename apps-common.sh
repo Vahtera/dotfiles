@@ -11,6 +11,13 @@ if [[ ! -r "$APPS_FILE" ]]; then
 fi
 source "$APPS_FILE"
 
+# True only when a flatpak with exactly this application id is installed. (A substring
+# match would treat e.g. "go" as installed because of com.google.Chrome.)
+flatpak_app_installed() {
+    command -v flatpak >/dev/null 2>&1 || return 1
+    flatpak list --columns=application 2>/dev/null | grep -qixF "$1"
+}
+
 GO_INSTALLED=0
 
 mark_go_installed() {

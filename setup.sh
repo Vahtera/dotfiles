@@ -16,12 +16,21 @@ RESET='\033[0m'
 REPO_RAW_URL="https://raw.githubusercontent.com/Vahtera/dotfiles/main"
 OS_RELEASE_FILE="${OS_RELEASE_FILE:-/etc/os-release}"
 
+# sshd, ufw, nft, iptables, ... live in sbin directories that a regular user's PATH
+# often lacks (e.g. Debian), which makes `command -v` miss tools that are installed.
+export PATH="$PATH:/usr/local/sbin:/usr/sbin:/sbin"
+
 echo -e "${CYAN}====================================================${RESET}"
 echo -e "${PURPLE}   Setting up Dotfiles for user: ${YELLOW}$USER${RESET}"
 echo -e "${CYAN}====================================================${RESET}\n"
 
-# Determine directory if running from a local clone
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" 2>/dev/null && pwd )"
+# Determine directory if running from a local clone. With `bash -c "$(curl ...)"`
+# BASH_SOURCE is empty and dirname would resolve to the current directory, so only
+# treat this as a clone when the script is a real file.
+SCRIPT_DIR=""
+if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
+    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+fi
 
 LOCAL_BIN="$HOME/.local/bin"
 CONFIG_DIR="$HOME/.config"
@@ -35,17 +44,27 @@ fetch_file() {
 
     if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/$filename" ]; then
         cp "$SCRIPT_DIR/$filename" "$dest"
-        return 0
-    elif command -v curl &>/dev/null; then
-        curl -fsSL "$REPO_RAW_URL/$filename" -o "$dest"
-        return 0
+        return
+    fi
+
+    local tmp rc=0
+    tmp="$(mktemp)" || return 1
+    if command -v curl &>/dev/null; then
+        curl -fsSL "$REPO_RAW_URL/$filename" -o "$tmp" || rc=$?
     elif command -v wget &>/dev/null; then
-        wget -qO "$dest" "$REPO_RAW_URL/$filename"
-        return 0
+        wget -qO "$tmp" "$REPO_RAW_URL/$filename" || rc=$?
     else
         echo -e "${YELLOW}❌ Error: Could not locate $filename locally nor via curl/wget.${RESET}"
-        return 1
+        rc=1
     fi
+
+    if [ "$rc" -eq 0 ]; then
+        cat "$tmp" > "$dest" || rc=$?
+    else
+        echo -e "${YELLOW}❌ Could not download $filename (exit $rc).${RESET}"
+    fi
+    rm -f "$tmp"
+    return "$rc"
 }
 
 run_privileged() {
@@ -70,10 +89,10 @@ ssh_server_listening() {
 
 allow_ssh_nft_chain() {
     local family="$1"
-    if ! nft list chain "$family" filter input >/dev/null 2>&1; then
+    if ! run_privileged nft list chain "$family" filter input >/dev/null 2>&1; then
         return 1
     fi
-    if ! nft list chain "$family" filter input 2>/dev/null | grep -Eq 'tcp dport 22 accept'; then
+    if ! run_privileged nft list chain "$family" filter input 2>/dev/null | grep -Eq 'tcp dport 22 accept'; then
         run_privileged nft insert rule "$family" filter input tcp dport 22 accept
     fi
 }
@@ -92,7 +111,7 @@ setup_ssh_server() {
     if ! command -v sshd >/dev/null 2>&1; then
         echo -e "${CYAN}Installing SSH server ($ssh_package)...${RESET}"
         case "$PACKAGE_SCRIPT" in
-            debian-apt.sh) run_privileged apt install -y "$ssh_package" ;;
+            debian-apt.sh) run_privileged apt-get update; run_privileged apt-get install -y "$ssh_package" ;;
             arch-pacman.sh) run_privileged pacman -S --needed --noconfirm "$ssh_package" ;;
             fedora-dnf.sh) run_privileged dnf install -y "$ssh_package" ;;
             void-xbps.sh) run_privileged xbps-install -y "$ssh_package" ;;
@@ -104,6 +123,9 @@ setup_ssh_server() {
         echo -e "${YELLOW}SSH server is unavailable; skipping service and firewall setup.${RESET}"
         return
     fi
+    # Host keys may not exist yet (some distros create them on first service start),
+    # which would make `sshd -t` fail even though the configuration is fine.
+    run_privileged ssh-keygen -A >/dev/null 2>&1 || true
     if ! run_privileged sshd -t; then
         echo -e "${YELLOW}SSH server configuration is invalid; not starting sshd.${RESET}"
         return
@@ -138,7 +160,7 @@ setup_ssh_server() {
         return
     fi
 
-    if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q '^Status: active'; then
+    if command -v ufw >/dev/null 2>&1 && run_privileged ufw status 2>/dev/null | grep -q '^Status: active'; then
         run_privileged ufw allow 22/tcp
         echo -e "${GREEN}Allowed SSH through UFW (TCP port 22).${RESET}"
     elif command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
@@ -147,19 +169,19 @@ setup_ssh_server() {
             run_privileged firewall-cmd --reload
         fi
         echo -e "${GREEN}Allowed SSH through firewalld (TCP port 22).${RESET}"
-    elif command -v nft >/dev/null 2>&1 && nft list ruleset 2>/dev/null | grep -Eq 'hook input'; then
+    elif command -v nft >/dev/null 2>&1 && run_privileged nft list ruleset 2>/dev/null | grep -Eq 'hook input'; then
         if allow_ssh_nft_chain inet || allow_ssh_nft_chain ip || allow_ssh_nft_chain ip6; then
             echo -e "${GREEN}Allowed SSH through nftables for the current ruleset (TCP port 22).${RESET}"
             echo -e "${YELLOW}Persist the rule in your nftables configuration if your rules are reloaded at boot.${RESET}"
         else
             echo -e "${YELLOW}An nftables firewall is active, but no standard filter input chain was found; allow inbound TCP port 22 in your nftables rules.${RESET}"
         fi
-    elif command -v iptables >/dev/null 2>&1 && iptables -S INPUT 2>/dev/null | grep -Eq '^-P INPUT (DROP|REJECT)|^-A INPUT'; then
-        if ! iptables -C INPUT -p tcp --dport 22 -j ACCEPT 2>/dev/null; then
+    elif command -v iptables >/dev/null 2>&1 && run_privileged iptables -S INPUT 2>/dev/null | grep -Eq '^-P INPUT (DROP|REJECT)|^-A INPUT'; then
+        if ! run_privileged iptables -C INPUT -p tcp --dport 22 -j ACCEPT 2>/dev/null; then
             run_privileged iptables -I INPUT 1 -p tcp --dport 22 -j ACCEPT
         fi
-        if command -v ip6tables >/dev/null 2>&1 && ip6tables -S INPUT 2>/dev/null | grep -Eq '^-P INPUT (DROP|REJECT)|^-A INPUT'; then
-            if ! ip6tables -C INPUT -p tcp --dport 22 -j ACCEPT 2>/dev/null; then
+        if command -v ip6tables >/dev/null 2>&1 && run_privileged ip6tables -S INPUT 2>/dev/null | grep -Eq '^-P INPUT (DROP|REJECT)|^-A INPUT'; then
+            if ! run_privileged ip6tables -C INPUT -p tcp --dport 22 -j ACCEPT 2>/dev/null; then
                 run_privileged ip6tables -I INPUT 1 -p tcp --dport 22 -j ACCEPT
             fi
         fi
@@ -168,9 +190,9 @@ setup_ssh_server() {
         else
             echo -e "${YELLOW}Allowed SSH through iptables for this session; no persistent iptables save tool was found.${RESET}"
         fi
-    elif command -v ipfw >/dev/null 2>&1 && ipfw list 2>/dev/null | grep -q 'deny ip from any to any'; then
+    elif command -v ipfw >/dev/null 2>&1 && run_privileged ipfw list 2>/dev/null | grep -q 'deny ip from any to any'; then
         local ipfw_rules rule_number
-        ipfw_rules="$(ipfw list 2>/dev/null)"
+        ipfw_rules="$(run_privileged ipfw list 2>/dev/null)"
         if ! grep -Eq 'allow tcp .*dst-port 22' <<< "$ipfw_rules"; then
             rule_number=65534
             while grep -q "^$rule_number " <<< "$ipfw_rules" && [ "$rule_number" -gt 1 ]; do
@@ -180,12 +202,47 @@ setup_ssh_server() {
         fi
         echo -e "${GREEN}Allowed SSH through ipfw for the current ruleset (TCP port 22).${RESET}"
         echo -e "${YELLOW}Persist the rule in your FreeBSD firewall configuration if rules are reloaded at boot.${RESET}"
-    elif command -v pfctl >/dev/null 2>&1 && pfctl -s info 2>/dev/null | grep -q 'Status: Enabled'; then
+    elif command -v pfctl >/dev/null 2>&1 && run_privileged pfctl -s info 2>/dev/null | grep -q 'Status: Enabled'; then
         echo -e "${YELLOW}PF is active. Its rules were left unchanged; allow inbound TCP port 22 in /etc/pf.conf.${RESET}"
     else
         echo -e "${CYAN}No active supported firewall detected; no firewall rules changed.${RESET}"
     fi
 }
+
+# 0. Detect the distro (used by the SSH setup and the package installer step)
+PACKAGE_SCRIPT=""
+if [ -r "$OS_RELEASE_FILE" ]; then
+    . "$OS_RELEASE_FILE"
+    DISTRO_ID="${ID,,}"
+    DISTRO_LIKE=" ${ID_LIKE,,} "
+
+    case "$DISTRO_ID" in
+        arch) PACKAGE_SCRIPT="arch-pacman.sh" ;;
+        debian|ubuntu|linuxmint|pop|raspbian|kali) PACKAGE_SCRIPT="debian-apt.sh" ;;
+        fedora|rhel|centos|rocky|almalinux|nobara) PACKAGE_SCRIPT="fedora-dnf.sh" ;;
+        freebsd) PACKAGE_SCRIPT="freebsd-pkg.sh" ;;
+        void) PACKAGE_SCRIPT="void-xbps.sh" ;;
+        haiku) PACKAGE_SCRIPT="haiku-pkgman.sh" ;;
+        *)
+            case "$DISTRO_LIKE" in
+                *" arch "*) PACKAGE_SCRIPT="arch-pacman.sh" ;;
+                *" debian "*|*" ubuntu "*) PACKAGE_SCRIPT="debian-apt.sh" ;;
+                *" fedora "*|*" rhel "*|*" centos "*) PACKAGE_SCRIPT="fedora-dnf.sh" ;;
+            esac
+            ;;
+    esac
+fi
+
+if [[ "$(uname -s)" == "Haiku" ]]; then
+    PACKAGE_SCRIPT="haiku-pkgman.sh"
+fi
+
+# 0.1 Set up the SSH server first, so remote access works even if a later step fails
+if [ -n "$PACKAGE_SCRIPT" ] && [ "$PACKAGE_SCRIPT" != "haiku-pkgman.sh" ]; then
+    echo -e "${CYAN}[0/5] Setting up the SSH server...${RESET}"
+    setup_ssh_server || echo -e "  ${YELLOW}SSH server setup did not complete; continuing.${RESET}"
+    echo
+fi
 
 # 1. Install CLI tools to $HOME/.local/bin
 echo -e "${CYAN}[1/5] Installing CLI tools to $LOCAL_BIN...${RESET}"
@@ -229,7 +286,8 @@ fi
 echo -e "\n${CYAN}[1.1/5] Installing Nerd Font...${RESET}"
 if fetch_file "install-nerdfont.sh" "$LOCAL_BIN/install-nerdfont.sh"; then
     chmod +x "$LOCAL_BIN/install-nerdfont.sh"
-    bash "$LOCAL_BIN/install-nerdfont.sh"
+    bash "$LOCAL_BIN/install-nerdfont.sh" \
+        || echo -e "  ${YELLOW}Nerd Font installation did not complete; continuing.${RESET}"
 else
     echo -e "  ${YELLOW}Could not fetch install-nerdfont.sh; skipping Nerd Font installation.${RESET}"
 fi
@@ -309,7 +367,19 @@ if command -v nu &>/dev/null; then
         echo -e "  ${GREEN}✓ Updated $NUSHELL_ENV${RESET}"
     fi
 
-    NUSHELL_SOURCE='[[ -f "$HOME/.config/nushell/nushell-user" ]] && source "$HOME/.config/nushell/nushell-user"'
+    # Nushell has no [[ ]] or &&, so earlier versions of this script wrote lines that
+    # cannot be parsed. Remove those, then use plain `source` lines.
+    for nu_file in config.nu env.nu; do
+        if grep -qF '[[ -f "$HOME/.config/nushell/nushell-' "$NUSHELL_CONFIG_DIR/$nu_file"; then
+            grep -vF '[[ -f "$HOME/.config/nushell/nushell-' "$NUSHELL_CONFIG_DIR/$nu_file" \
+                > "$NUSHELL_CONFIG_DIR/$nu_file.tmp" || true
+            cat "$NUSHELL_CONFIG_DIR/$nu_file.tmp" > "$NUSHELL_CONFIG_DIR/$nu_file"
+            rm -f "$NUSHELL_CONFIG_DIR/$nu_file.tmp"
+            echo -e "  ${YELLOW}Removed old bash-style source lines from $NUSHELL_CONFIG_DIR/$nu_file${RESET}"
+        fi
+    done
+
+    NUSHELL_SOURCE='source ~/.config/nushell/nushell-user'
     if ! grep -qF "$NUSHELL_SOURCE" "$NUSHELL_CONFIG_DIR/config.nu"; then
         printf '\n%s\n' "$NUSHELL_SOURCE" >> "$NUSHELL_CONFIG_DIR/config.nu"
         echo -e "  ${GREEN}✓ Added the nushell-user source line to $NUSHELL_CONFIG_DIR/config.nu${RESET}"
@@ -317,7 +387,7 @@ if command -v nu &>/dev/null; then
         echo -e "  ${YELLOW}The nushell-user source line already exists in $NUSHELL_CONFIG_DIR/config.nu.${RESET}"
     fi
 
-    NUSHELL_ENV_SOURCE='[[ -f "$HOME/.config/nushell/nushell-env" ]] && source "$HOME/.config/nushell/nushell-env"'
+    NUSHELL_ENV_SOURCE='source ~/.config/nushell/nushell-env'
     if ! grep -qF "$NUSHELL_ENV_SOURCE" "$NUSHELL_CONFIG_DIR/env.nu"; then
         printf '\n%s\n' "$NUSHELL_ENV_SOURCE" >> "$NUSHELL_CONFIG_DIR/env.nu"
         echo -e "  ${GREEN}✓ Added the nushell-env source line to $NUSHELL_CONFIG_DIR/env.nu${RESET}"
@@ -350,33 +420,6 @@ fi
 # 5. Run the package installation script for the detected distro
 echo -e "\n${CYAN}[5/5] Package Installation Check...${RESET}"
 
-PACKAGE_SCRIPT=""
-if [ -r "$OS_RELEASE_FILE" ]; then
-    . "$OS_RELEASE_FILE"
-    DISTRO_ID="${ID,,}"
-    DISTRO_LIKE=" ${ID_LIKE,,} "
-
-    case "$DISTRO_ID" in
-        arch) PACKAGE_SCRIPT="arch-pacman.sh" ;;
-        debian|ubuntu|linuxmint|pop|raspbian|kali) PACKAGE_SCRIPT="debian-apt.sh" ;;
-        fedora|rhel|centos|rocky|almalinux|nobara) PACKAGE_SCRIPT="fedora-dnf.sh" ;;
-        freebsd) PACKAGE_SCRIPT="freebsd-pkg.sh" ;;
-        void) PACKAGE_SCRIPT="void-xbps.sh" ;;
-        haiku) PACKAGE_SCRIPT="haiku-pkgman.sh" ;;
-        *)
-            case "$DISTRO_LIKE" in
-                *" arch "*) PACKAGE_SCRIPT="arch-pacman.sh" ;;
-                *" debian "*|*" ubuntu "*) PACKAGE_SCRIPT="debian-apt.sh" ;;
-                *" fedora "*|*" rhel "*|*" centos "*) PACKAGE_SCRIPT="fedora-dnf.sh" ;;
-            esac
-            ;;
-    esac
-fi
-
-if [[ "$(uname -s)" == "Haiku" ]]; then
-    PACKAGE_SCRIPT="haiku-pkgman.sh"
-fi
-
 TEMP_PACKAGE_SCRIPT=""
 PACKAGE_EXEC=""
 if [ -n "$PACKAGE_SCRIPT" ]; then
@@ -384,10 +427,6 @@ if [ -n "$PACKAGE_SCRIPT" ]; then
         || ! fetch_file "apps-common.sh" "$LOCAL_BIN/apps-common.sh"; then
         echo -e "${YELLOW}Could not install the shared app list and loader.${RESET}"
         exit 1
-    fi
-
-    if [ "$PACKAGE_SCRIPT" != "haiku-pkgman.sh" ]; then
-        setup_ssh_server
     fi
 
     GUI_SCRIPT=""
@@ -433,7 +472,8 @@ if [ -n "$PACKAGE_SCRIPT" ]; then
         fi
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            bash "$PACKAGE_EXEC" "$@"
+            bash "$PACKAGE_EXEC" "$@" \
+                || echo -e "  ${YELLOW}$PACKAGE_SCRIPT did not finish cleanly; continuing.${RESET}"
         else
             echo -e "  ${YELLOW}Skipped package installation. You can run $PACKAGE_SCRIPT manually later.${RESET}"
         fi
@@ -446,7 +486,8 @@ fi
 if fetch_file "install-extra.sh" "$LOCAL_BIN/install-extra.sh"; then
     chmod +x "$LOCAL_BIN/install-extra.sh"
     echo -e "\n${CYAN}[6/5] Installing extra CLI tools...${RESET}"
-    bash "$LOCAL_BIN/install-extra.sh"
+    bash "$LOCAL_BIN/install-extra.sh" \
+        || echo -e "  ${YELLOW}Some extra CLI tools failed to install; continuing.${RESET}"
 else
     echo -e "  ${YELLOW}Could not fetch install-extra.sh; skipping extra CLI tools installation.${RESET}"
 fi 
