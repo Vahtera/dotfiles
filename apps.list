@@ -24,7 +24,7 @@ apps=(
     'ripgrep'
     'scrot'
     'sd'
-    'thefuck'
+    'pay-respects, thefuck'
     'tree'
     'tokei'
     'trash-cli'
