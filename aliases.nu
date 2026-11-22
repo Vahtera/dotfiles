@@ -30,14 +30,13 @@ def --wrapped tree [...rest] {
     }
 }
 
-# bat / batcat compatibility
+# bat / batcat compatibility. Debian-based systems call the program `batcat`. Do not test
+# for `bat` itself with `which`: it would find this very command and always succeed.
 def --wrapped bat [...rest] {
-    if (which bat | is-not-empty) {
-        ^bat ...$rest
-    } else if (which batcat | is-not-empty) {
+    if (which batcat | is-not-empty) {
         ^batcat ...$rest
     } else {
-        error make { msg: "bat is not installed" }
+        ^bat ...$rest
     }
 }
 
