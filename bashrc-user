@@ -5,7 +5,9 @@ fi
 
 # thefuck is unmaintained and crashes on newer Python versions in some distros; only
 # load the alias when it works, so a crash does not print a traceback in every shell.
-if command -v thefuck &>/dev/null; then
+if command -v pay-respects &>/dev/null; then
+    eval "$(pay-respects bash --alias fuck)"   # "zsh" in zshrc-user
+elif command -v thefuck &>/dev/null; then
     if _thefuck_alias="$(thefuck --alias 2>/dev/null)"; then
         eval "$_thefuck_alias"
     fi

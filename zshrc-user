@@ -10,7 +10,9 @@ fi
 
 # thefuck is unmaintained and crashes on newer Python versions in some distros; only
 # load the alias when it works, so a crash does not print a traceback in every shell.
-if command -v thefuck &>/dev/null; then
+if command -v pay-respects &>/dev/null; then
+    eval "$(pay-respects bash --alias fuck)"   # "zsh" in zshrc-user
+elif command -v thefuck &>/dev/null; then
     if _thefuck_alias="$(thefuck --alias 2>/dev/null)"; then
         eval "$_thefuck_alias"
     fi
@@ -31,6 +33,21 @@ ZSH_RPROMPT_INDENT=0
 if [[ -x "$HOME/.local/bin/oh-my-posh" && -f "$HOME/.config/ohmyposh/anna.omp.json" ]]; then
     eval "$("$HOME/.local/bin/oh-my-posh" init zsh --config "$HOME/.config/ohmyposh/anna.omp.json")"
 fi
+
+export EDITOR='nano'
+
+# Suffix Aliases
+alias -s conf="$EDITOR"
+alias -s go="$EDITOR"
+alias -s md="bat"
+alias -s json="$EDITOR"
+alias -s toml="$EDITOR"
+alias -s taml="$EDITOR"
+alias -s py="python3"
+
+# Push initial prompt to bottom of window
+printf '\n%.0s' {1..$LINES}
+alias clear='clear && printf "\n%.0s" {1..$LINES}'
 
 if [ -x "$HOME/.local/bin/welcome_banner.sh" ] && [[ $- == *i* ]]; then
     clear && "$HOME/.local/bin/welcome_banner.sh"
