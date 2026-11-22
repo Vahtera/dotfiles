@@ -1,51 +1,12 @@
 
 # --- NUSHELL Shell Aliases ---
 #
-# Commands that choose between installed tools are custom commands (`def --wrapped`, which
-# passes any flags straight through). The choice is made when the command runs: an `alias`
-# or `def` written inside an `if` block would only exist inside that block.
+# ll, tree and bat are not defined here: setup-nushell.sh appends them below when it deploys
+# this file, based on which tools are installed. (A Nushell alias cannot be conditional, and a
+# custom command would hide the terminal from the tool, so bat, eza and lsd would lose their
+# colors and paging.) Run ~/.local/bin/setup-nushell.sh again after installing one of them.
 #
 # kernel, showip and weather are small scripts in ~/.local/bin (shared with bash and zsh).
 
-# Directory listings
-def --wrapped ll [...rest] {
-    if (which lsd | is-not-empty) {
-        ^lsd -lahX --group-directories-first ...$rest
-    } else if (which eza | is-not-empty) {
-        ^eza --long --all --header --git --classify --sort=type ...$rest
-    } else if (which exa | is-not-empty) {
-        ^exa --long --all --header --git --classify --sort=type ...$rest
-    } else {
-        ^ls -la ...$rest
-    }
-}
-
-def --wrapped tree [...rest] {
-    if (which eza | is-not-empty) {
-        ^eza -1 -F --tree ...$rest
-    } else if (which exa | is-not-empty) {
-        ^exa -1 -F --tree ...$rest
-    } else {
-        ^tree ...$rest
-    }
-}
-
-# bat / batcat compatibility. Debian-based systems call the program `batcat`. Do not test
-# for `bat` itself with `which`: it would find this very command and always succeed.
-def --wrapped bat [...rest] {
-    if (which batcat | is-not-empty) {
-        ^batcat ...$rest
-    } else {
-        ^bat ...$rest
-    }
-}
-
-# Moon phase
-def moonphase [] {
-    ^curl wttr.in/Moon
-}
-
-# Downloads
-def --wrapped dl [...rest] {
-    ^aria2c ...$rest
-}
+alias moonphase = curl wttr.in/Moon
+alias dl = aria2c

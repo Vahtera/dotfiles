@@ -31,9 +31,9 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/Vahtera/dotfiles/main/se
 1. **Detects the distro** and sets up the SSH server first (installs OpenSSH, enables the service, opens port 22 in the firewall), so remote access works even if a later step fails. Skipped on Haiku.
 2. Installs helper scripts and the Oh My Posh theme, and, if NetworkManager is running, offers to disable automatically learned IPv6 DNS (`disable-ipv6-auto-dns.sh`).
 3. Downloads the Nerd Fonts listed in `install-nerdfont.sh`.
-4. Updates the shell configuration by running `setup-bash.sh` (including installing [ble.sh](https://github.com/akinomyoga/ble.sh)), `setup-zsh.sh` and `setup-nushell.sh`. Each of them can also be run on its own to update just one shell (see below).
-5. Deploys the Conky and Fastfetch configuration.
-6. Runs the package installer for the detected distro, then installs extra CLI tools from upstream installers (`install-extra.sh`).
+4. Deploys the Conky and Fastfetch configuration.
+5. Runs the package installer for the detected distro, then installs extra CLI tools from upstream installers (`install-extra.sh`).
+6. Updates the shell configuration last, so the shells and tools installed above are picked up: `setup-bash.sh` (including installing [ble.sh](https://github.com/akinomyoga/ble.sh)), `setup-zsh.sh` and `setup-nushell.sh`. Each can also be run on its own to update just one shell (see below), for example after installing a new tool.
 
 A failing step prints a warning and the setup carries on with the next one.
 
@@ -64,7 +64,7 @@ A failing step prints a warning and the setup carries on with the next one.
 ### Shell configuration
 
 * `bashrc-user`, `zshrc-user` - Managed shell configuration (PATH, zoxide, Oh My Posh prompt, welcome banner). Bash also loads ble.sh for line editing.
-* `nushell-user`, `nushell-env`, `aliases.nu` - The Nushell equivalents.
+* `nushell-user`, `nushell-env`, `aliases.nu` - The Nushell equivalents. `setup-nushell.sh` appends the `ll`, `tree` and `bat` aliases to `aliases.nu` for whichever tools are installed on that machine.
 * `bash_aliases` - Custom CLI shortcuts dynamically configured to your installed tools.
 * `anna.omp.json` - Oh My Posh theme shared by all shells.
 * `kitty.conf` - Kitty terminal configuration, installed by the GUI app installer.

@@ -285,25 +285,6 @@ else
     echo -e "  ${YELLOW}Could not fetch install-nerdfont.sh; skipping Nerd Font installation.${RESET}"
 fi
 
-# 2. Update the shell configuration (bash, zsh, nushell). Each setup-<shell>.sh can also be
-# run on its own, e.g. ~/.local/bin/setup-zsh.sh, to update just one shell.
-echo -e "\n${CYAN}[2-3/5] Updating shell configuration...${RESET}"
-fetch_file "setup-common.sh" "$LOCAL_BIN/setup-common.sh" || true
-for shell_script in setup-bash.sh setup-zsh.sh setup-nushell.sh; do
-    if fetch_file "$shell_script" "$LOCAL_BIN/$shell_script"; then
-        chmod +x "$LOCAL_BIN/$shell_script"
-        # From a clone, run the clone's copy so local changes are used; otherwise the installed one
-        shell_script_dir="$LOCAL_BIN"
-        if [ -n "$SCRIPT_DIR" ]; then
-            shell_script_dir="$SCRIPT_DIR"
-        fi
-        bash "$shell_script_dir/$shell_script" \
-            || echo -e "  ${YELLOW}$shell_script did not finish cleanly; continuing.${RESET}"
-    else
-        echo -e "  ${YELLOW}Could not fetch $shell_script; skipping.${RESET}"
-    fi
-done
-
 # 4. Deploy Conky configuration
 echo -e "\n${CYAN}[4/5] Deploying Conky configuration...${RESET}"
 CONKY_DIR="$HOME/.conky"
@@ -398,6 +379,26 @@ if fetch_file "install-extra.sh" "$LOCAL_BIN/install-extra.sh"; then
 else
     echo -e "  ${YELLOW}Could not fetch install-extra.sh; skipping extra CLI tools installation.${RESET}"
 fi 
+
+# 7. Update the shell configuration (bash, zsh, nushell). This runs last so that zsh, nushell and
+# the tools behind the aliases (eza, lsd, bat, ...) are installed by now. Each setup-<shell>.sh can
+# also be run on its own, e.g. ~/.local/bin/setup-zsh.sh, to update just one shell.
+echo -e "\n${CYAN}[7/5] Updating shell configuration...${RESET}"
+fetch_file "setup-common.sh" "$LOCAL_BIN/setup-common.sh" || true
+for shell_script in setup-bash.sh setup-zsh.sh setup-nushell.sh; do
+    if fetch_file "$shell_script" "$LOCAL_BIN/$shell_script"; then
+        chmod +x "$LOCAL_BIN/$shell_script"
+        # From a clone, run the clone's copy so local changes are used; otherwise the installed one
+        shell_script_dir="$LOCAL_BIN"
+        if [ -n "$SCRIPT_DIR" ]; then
+            shell_script_dir="$SCRIPT_DIR"
+        fi
+        bash "$shell_script_dir/$shell_script" \
+            || echo -e "  ${YELLOW}$shell_script did not finish cleanly; continuing.${RESET}"
+    else
+        echo -e "  ${YELLOW}Could not fetch $shell_script; skipping.${RESET}"
+    fi
+done
 
 # Cleanup downloaded installer if created
 if [ -n "$TEMP_PACKAGE_SCRIPT" ] && [ -f "$TEMP_PACKAGE_SCRIPT" ]; then
