@@ -262,6 +262,14 @@ if fetch_file "run_benchmark.sh" "$LOCAL_BIN/run_benchmark.sh"; then
     echo -e "  ${GREEN}✓ Installed run_benchmark.sh${RESET}"
 fi
 
+# Small commands shared by every shell (bash, zsh and Nushell all run them as programs)
+for cmd_script in kernel showip weather; do
+    if fetch_file "$cmd_script.sh" "$LOCAL_BIN/$cmd_script"; then
+        chmod +x "$LOCAL_BIN/$cmd_script"
+        echo -e "  ${GREEN}✓ Installed $cmd_script${RESET}"
+    fi
+done
+
 if fetch_file "install-wordterm.sh" "$LOCAL_BIN/install-wordterm.sh"; then
     chmod +x "$LOCAL_BIN/install-wordterm.sh"
     echo -e "  ${GREEN}✓ Installed install-wordterm.sh${RESET}"

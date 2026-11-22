@@ -25,6 +25,5 @@ if command -v aria2c &>/dev/null; then
     alias dl='aria2c'
 fi
 
-alias kernel="uname -r | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)-.*/\1/'"
-alias showip='ip -4 addr show scope global | grep inet | awk "{print \$2}" | cut -d"/" -f1 | paste -s -d, -'
-alias weather='(CITY=$(curl -fsS --max-time 3 http://ip-api.com/line/?fields=city 2>/dev/null) && curl "wttr.in/${CITY// /+}?M")'
+# kernel, showip and weather are scripts in ~/.local/bin (kernel.sh, showip.sh, weather.sh),
+# shared with Nushell, so they are not defined here.

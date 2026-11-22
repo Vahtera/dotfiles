@@ -74,3 +74,4 @@ A failing step prints a warning and the setup carries on with the next one.
 * `welcome_banner.sh` - Interactive login greeting script displaying system stats, IP address, and weather. City, weather and public IP lookups are cached in `~/.cache/dotfiles/`, so opening a shell does not make a network request every time.
 * `sidebar-conkyrc`, `topbar-conkyrc`, `allcombined.lua`, `conky-start.sh`, `moon_info.py` - Conky desktop widgets and the moon-phase helper they use.
 * `run_benchmark.sh` - Multi-core & single-core CPU benchmarking tool powered by `sysbench`.
+* `kernel.sh`, `showip.sh`, `weather.sh` - Small commands installed as `kernel`, `showip` and `weather` in `~/.local/bin/`. They are scripts rather than aliases so bash, zsh and Nushell all share one definition. `weather` takes an optional location (`weather Helsinki`).
