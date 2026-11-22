@@ -147,7 +147,11 @@ fi
 if ask "Would you like to install listed Python apps via pipx?"; then
     if command -v pipx &>/dev/null; then
         for app in "${python_apps[@]}"; do
-            pipx install "$app" || true
+            if pipx install "$app"; then
+                installed+=("pipx:$app")
+            else
+                failed+=("pipx:$app")
+            fi
         done
         pipx ensurepath
     else

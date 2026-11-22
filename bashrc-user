@@ -3,8 +3,13 @@ if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
     export PATH="$PATH:$HOME/.local/bin"
 fi
 
+# thefuck is unmaintained and crashes on newer Python versions in some distros; only
+# load the alias when it works, so a crash does not print a traceback in every shell.
 if command -v thefuck &>/dev/null; then
-    eval "$(thefuck --alias)"
+    if _thefuck_alias="$(thefuck --alias 2>/dev/null)"; then
+        eval "$_thefuck_alias"
+    fi
+    unset _thefuck_alias
 fi
 
 if command -v zoxide &>/dev/null; then

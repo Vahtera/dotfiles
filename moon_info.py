@@ -1,24 +1,51 @@
 #!/usr/bin/env python3
 import datetime
 import math
+import os
 import subprocess
 import sys
+import time
+
+# Shared with welcome_banner.sh so the city is looked up at most every few hours.
+CITY_CACHE = os.path.join(
+    os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"), "dotfiles", "city"
+)
+CITY_CACHE_MAX_AGE = 6 * 3600
 
 def get_city():
+    try:
+        if os.path.getsize(CITY_CACHE) > 0 and time.time() - os.path.getmtime(CITY_CACHE) < CITY_CACHE_MAX_AGE:
+            with open(CITY_CACHE, encoding="utf-8") as f:
+                cached = f.read().strip()
+            if cached:
+                return cached
+    except OSError:
+        pass
+
     try:
         city = subprocess.check_output(
             ["curl", "-fsS", "--max-time", "3", "http://ip-api.com/line/?fields=city"],
             stderr=subprocess.DEVNULL
         ).decode("utf-8").strip()
-        return city
     except Exception:
         return "Unknown"
 
+    if city:
+        try:
+            os.makedirs(os.path.dirname(CITY_CACHE), exist_ok=True)
+            with open(CITY_CACHE, "w", encoding="utf-8") as f:
+                f.write(city + "\n")
+        except OSError:
+            pass
+    return city or "Unknown"
+
 def get_moon_info():
-    now = datetime.datetime.now()
+    # Compare in UTC: the reference moment below is UTC, so using naive local time
+    # would shift every phase by the local UTC offset.
+    now = datetime.datetime.now(datetime.timezone.utc)
     
     # Reference new moon: 2026-10-11 11:40 UTC
-    ref_new_moon = datetime.datetime(2026, 10, 11, 11, 40)
+    ref_new_moon = datetime.datetime(2026, 10, 11, 11, 40, tzinfo=datetime.timezone.utc)
     
     diff = (now - ref_new_moon).total_seconds()
     days_since_new_moon = (diff / 86400.0) % 29.530588853
@@ -49,7 +76,8 @@ def get_moon_info():
     days_to_full = (14.765 - age) % 29.530588853
     if days_to_full < 0: days_to_full += 29.530588853
     
-    next_full_date = now + datetime.timedelta(days=days_to_full)
+    # Show the date in local time
+    next_full_date = (now + datetime.timedelta(days=days_to_full)).astimezone()
     
     # Full moon name
     month = next_full_date.month

@@ -16,6 +16,22 @@ if [ ! -f "$WORDTERM_DIR/build.sh" ]; then
     exit 1
 fi
 
+# Warn early when the installed Go is older than go.mod asks for.
+check_go_version() {
+    [ -f "$WORDTERM_DIR/go.mod" ] || return 0
+    command -v go >/dev/null 2>&1 || return 0
+    required="$(sed -n 's/^go[[:space:]]\{1,\}\([0-9][0-9.]*\).*/\1/p' "$WORDTERM_DIR/go.mod" | head -n 1)"
+    have="$(go version 2>/dev/null | sed -n 's/.* go\([0-9][0-9.]*\).*/\1/p' | head -n 1)"
+    [ -n "$required" ] && [ -n "$have" ] || return 0
+    oldest="$(printf '%s\n%s\n' "$required" "$have" | sort -V | head -n 1)"
+    if [ "$oldest" != "$required" ]; then
+        echo "Warning: Wordterm's go.mod needs Go $required but Go $have is installed." >&2
+        echo "Go 1.21 and newer may download the required toolchain automatically; older ones cannot." >&2
+        echo "If the build below fails, install a newer Go from https://go.dev/dl/." >&2
+    fi
+}
+check_go_version
+
 chmod +x "$WORDTERM_DIR/build.sh"
 (cd "$WORDTERM_DIR" && ./build.sh --native)
 

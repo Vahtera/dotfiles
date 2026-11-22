@@ -21,29 +21,52 @@ if ! source "$SCRIPT_DIR/apps-common.sh"; then
 fi
 
 PROMPT_TIMEOUT=15
-
-if [[ $* == *"--auto-yes"* ]]; then
-    PROMPT_TIMEOUT=0
-    REPLY='Y'
+AUTO_YES=0
+if [[ " $* " == *" --auto-yes "* ]]; then
+    AUTO_YES=1
 fi
 
 echo -e "${PURPLE}Starting Debian/Ubuntu package install & update script${RESET}"
 echo -e "${YELLOW}Before proceeding, ensure you are happy with the packages listed in ${0##*/}${RESET}\n"
 
-if [ "$EUID" -ne 0 ]; then
+if ! command -v apt &>/dev/null; then
+    echo -e "${YELLOW}apt package manager non-existent on this system. Exiting.${RESET}"
+    exit 1
+fi
+
+if [[ "$EUID" -ne 0 ]]; then
+    if ! command -v sudo &>/dev/null; then
+        echo -e "${YELLOW}sudo is not installed. Run this script as root, or install sudo first.${RESET}"
+        exit 1
+    fi
     echo -e "${PURPLE}Elevated permissions are required to install packages.${RESET}"
     echo -e "${CYAN_B}Please enter your password...${RESET}"
-    sudo -v
-    if [ $? -ne 0 ]; then
+    if ! sudo -v; then
         echo -e "${YELLOW}Exiting, as sudo authentication failed.${RESET}"
         exit 1
     fi
 fi
 
-if ! command -v apt &>/dev/null; then
-    echo -e "${YELLOW}apt package manager non-existent on this system. Exiting.${RESET}"
-    exit 1
-fi
+run_privileged() {
+    if [[ "$EUID" -eq 0 ]]; then
+        "$@"
+    else
+        sudo "$@"
+    fi
+}
+
+ask() {
+    local prompt="$1"
+    if [[ "$AUTO_YES" -eq 1 ]]; then
+        echo -e "${CYAN_B}${prompt} (auto-yes)${RESET}"
+        return 0
+    fi
+    echo -e "${CYAN_B}${prompt} (y/N)${RESET}"
+    REPLY=""
+    read -t "$PROMPT_TIMEOUT" -n 1 -r REPLY || true
+    echo
+    [[ "$REPLY" =~ ^[Yy]$ ]]
+}
 
 ensure_spotify_apt_key() {
     local key_file key_url="https://download.spotify.com/debian/pubkey_5384CE82BA52C83A.gpg"
@@ -61,6 +84,11 @@ ensure_spotify_apt_key() {
         echo -e "${YELLOW}Cannot update Spotify's apt key: curl or wget is required.${RESET}"
         return 1
     fi
+    if ! command -v gpg >/dev/null 2>&1; then
+        rm -f "$key_file"
+        echo -e "${YELLOW}Cannot update Spotify's apt key: gpg is required.${RESET}"
+        return 1
+    fi
 
     if ! gpg --show-keys --with-colons "$key_file" 2>/dev/null \
         | awk -F: '$1 == "fpr" && substr($10, length($10) - 15) == "5384CE82BA52C83A" { found = 1 } END { exit !found }'; then
@@ -70,14 +98,14 @@ ensure_spotify_apt_key() {
     fi
 
     if ! gpg --dearmor --yes --output "$key_file.gpg" "$key_file" \
-        || ! sudo install -m 0644 "$key_file.gpg" /etc/apt/trusted.gpg.d/spotify.gpg; then
+        || ! run_privileged install -m 0644 "$key_file.gpg" /etc/apt/trusted.gpg.d/spotify.gpg; then
         rm -f "$key_file" "$key_file.gpg"
         return 1
     fi
     rm -f "$key_file" "$key_file.gpg"
 }
 
-ensure_spotify_apt_key || exit 1
+ensure_spotify_apt_key || echo -e "${YELLOW}[Warning] Could not refresh Spotify's apt key; continuing.${RESET}"
 
 apt_package_available() {
     apt-cache show "$1" 2>/dev/null \
@@ -92,29 +120,29 @@ apt_unavailable=()
 pipx_installed=()
 pipx_failed=()
 
+# A fresh system has empty package lists, which makes every package look unavailable
+APT_LISTS_DIR="${APT_LISTS_DIR:-/var/lib/apt/lists}"
+apt_lists_empty() {
+    ! find "$APT_LISTS_DIR" -maxdepth 1 -type f ! -name lock 2>/dev/null | grep -q .
+}
+
 # Update package database
-echo -e "${CYAN_B}Would you like to update package database? (y/N)${RESET}"
-read -t $PROMPT_TIMEOUT -n 1 -r REPLY
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+if apt_lists_empty; then
+    echo -e "${YELLOW}[Notice] The apt package lists are empty; updating them first.${RESET}"
+    run_privileged apt update
+elif ask "Would you like to update package database?"; then
     echo -e "${PURPLE}Updating database...${RESET}"
-    sudo apt update
+    run_privileged apt update
 fi
 
 # Upgrade existing packages
-echo -e "${CYAN_B}Would you like to upgrade currently installed packages? (y/N)${RESET}"
-read -t $PROMPT_TIMEOUT -n 1 -r REPLY
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+if ask "Would you like to upgrade currently installed packages?"; then
     echo -e "${PURPLE}Upgrading installed packages...${RESET}"
-    sudo apt upgrade -y
+    run_privileged apt upgrade -y
 fi
 
 # Install Debian APT Applications
-echo -e "${CYAN_B}Would you like to install listed apps? (y/N)${RESET}"
-read -t $PROMPT_TIMEOUT -n 1 -r REPLY
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+if ask "Would you like to install listed apps?"; then
     echo -e "${PURPLE}Starting APT installation...${RESET}"
     
     for app_line in "${apps[@]}"; do
@@ -136,7 +164,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
         elif select_available_app apt_package_available "$app_line"; then
             app="$APP_SELECTED"
             echo -e "${PURPLE}[Installing]${LIGHT} Downloading $app...${RESET}"
-            if sudo apt install -y "$app"; then
+            if run_privileged apt install -y "$app"; then
                 apt_installed+=("$app")
                 mark_go_installed "$app"
             else
@@ -167,15 +195,16 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 # Install Python CLI apps via pipx
-echo -e "${CYAN_B}Would you like to install listed python apps via pipx? (y/N)${RESET}"
-read -t $PROMPT_TIMEOUT -n 1 -r REPLY
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+if ask "Would you like to install listed python apps via pipx?"; then
     if command -v pipx &>/dev/null; then
         echo -e "${PURPLE}Starting pipx installation...${RESET}"
         for papp in "${python_apps[@]}"; do
             echo -e "${PURPLE}[Installing]${LIGHT} Downloading $papp via pipx...${RESET}"
-            pipx install "$papp" || true
+            if pipx install "$papp"; then
+                pipx_installed+=("$papp")
+            else
+                pipx_failed+=("$papp")
+            fi
         done
         pipx ensurepath
     else
@@ -184,12 +213,9 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 # Clean cache
-echo -e "${CYAN_B}Would you like to clear unused package caches? (y/N)${RESET}"
-read -t $PROMPT_TIMEOUT -n 1 -r REPLY
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+if ask "Would you like to clear unused package caches?"; then
     echo -e "${PURPLE}Freeing up disk space...${RESET}"
-    sudo apt autoclean -y
+    run_privileged apt autoclean -y
 fi
 
 echo

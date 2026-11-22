@@ -267,17 +267,20 @@ if fetch_file "install-wordterm.sh" "$LOCAL_BIN/install-wordterm.sh"; then
     echo -e "  ${GREEN}✓ Installed install-wordterm.sh${RESET}"
 fi
 
-if [ -c /dev/tty ]; then
-    read -r -p 'Disable automatically learned IPv6 DNS? (Y/n) ' REPLY < /dev/tty || REPLY=""
-else
-    read -r -p 'Disable automatically learned IPv6 DNS? (Y/n) ' REPLY || REPLY=""
-fi
-echo
-if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-    if fetch_file "disable-ipv6-auto-dns.sh" "$LOCAL_BIN/disable-ipv6-auto-dns.sh"; then
-        chmod +x "$LOCAL_BIN/disable-ipv6-auto-dns.sh"
-        if ! bash "$LOCAL_BIN/disable-ipv6-auto-dns.sh"; then
-            echo -e "  ${YELLOW}IPv6 auto-DNS configuration failed; continuing setup.${RESET}"
+# Only offer this when NetworkManager is available (it is what the script configures)
+if command -v nmcli >/dev/null 2>&1 && nmcli general status >/dev/null 2>&1; then
+    if [ -c /dev/tty ]; then
+        read -r -p 'Disable automatically learned IPv6 DNS? (Y/n) ' REPLY < /dev/tty || REPLY="N"
+    else
+        read -r -p 'Disable automatically learned IPv6 DNS? (Y/n) ' REPLY || REPLY="N"
+    fi
+    echo
+    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+        if fetch_file "disable-ipv6-auto-dns.sh" "$LOCAL_BIN/disable-ipv6-auto-dns.sh"; then
+            chmod +x "$LOCAL_BIN/disable-ipv6-auto-dns.sh"
+            if ! bash "$LOCAL_BIN/disable-ipv6-auto-dns.sh"; then
+                echo -e "  ${YELLOW}IPv6 auto-DNS configuration failed; continuing setup.${RESET}"
+            fi
         fi
     fi
 fi

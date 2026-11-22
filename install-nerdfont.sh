@@ -15,6 +15,11 @@ NERD_FONTS=(
 FONT_ROOT="$HOME/.local/share/fonts/NerdFonts"
 BASE_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/$NF_VERSION"
 
+if [[ "$(uname -s)" == "Haiku" ]]; then
+  echo "Skipping Nerd Fonts: Haiku does not use ~/.local/share/fonts."
+  exit 0
+fi
+
 for cmd in curl unzip; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "$cmd is required." >&2; exit 1; }
 done
@@ -30,6 +35,17 @@ mkdir -p "$FONT_ROOT"
 curl -fsSL "$BASE_URL/SHA-256.txt" -o "$tmp/SHA-256.txt" 2>/dev/null \
   || echo "Warning: no checksum file found, skipping verification." >&2
 
+# sha256sum is missing on FreeBSD/macOS; fall back to the tools they ship.
+sha256_of() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | cut -d' ' -f1
+  elif command -v sha256 >/dev/null 2>&1; then
+    sha256 -q "$1"
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | cut -d' ' -f1
+  fi
+}
+
 install_font() {
   local name="$1" dir="$FONT_ROOT/$1" zip="$tmp/$1.zip" expected actual
 
@@ -44,8 +60,13 @@ install_font() {
   if [[ -s "$tmp/SHA-256.txt" ]]; then
     expected="$(awk -v f="$name.zip" '$2 == f { print $1 }' "$tmp/SHA-256.txt")"
     if [[ -n "$expected" ]]; then
-      actual="$(sha256sum "$zip" | cut -d' ' -f1)"
-      [[ "$expected" == "$actual" ]] || { echo "Checksum mismatch for $name" >&2; return 1; }
+      actual="$(sha256_of "$zip")"
+      if [[ -z "$actual" ]]; then
+        echo "Warning: no SHA-256 tool found; not verifying $name." >&2
+      elif [[ "$expected" != "$actual" ]]; then
+        echo "Checksum mismatch for $name" >&2
+        return 1
+      fi
     fi
   fi
 

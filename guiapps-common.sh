@@ -175,7 +175,7 @@ install_helium() {
 }
 
 install_sniffnet() {
-    local arch asset_url package_file
+    local arch release_data asset_name asset_url digest package_file suffix
     case "$PACKAGE_MANAGER" in
         apt|dnf) ;;
         *) echo "Sniffnet's official Linux packages support Debian/Ubuntu and Fedora; skipping on $PACKAGE_MANAGER."; return 0 ;;
@@ -190,23 +190,44 @@ install_sniffnet() {
 
     case "$PACKAGE_MANAGER" in
         apt)
-            asset_url="$(curl -fsSL https://api.github.com/repos/GyulyVGC/sniffnet/releases/latest | jq -r --arg arch "$arch" '.assets[] | select(.name == ("Sniffnet_LinuxDEB_" + (if $arch == "x86_64" then "amd64" else "arm64" end) + ".deb")) | .browser_download_url')"
-            package_file="$(mktemp --suffix=.deb)"
-            curl -fL "$asset_url" -o "$package_file"
+            asset_name="Sniffnet_LinuxDEB_$([[ "$arch" == x86_64 ]] && printf amd64 || printf arm64).deb"
+            suffix=.deb
+            ;;
+        dnf)
+            asset_name="Sniffnet_LinuxRPM_${arch}.rpm"
+            suffix=.rpm
+            ;;
+    esac
+
+    release_data="$(curl -fsSL https://api.github.com/repos/GyulyVGC/sniffnet/releases/latest)" || {
+        echo "Could not query Sniffnet's latest release; skipping."
+        return 0
+    }
+    asset_url="$(jq -r --arg name "$asset_name" '.assets[] | select(.name == $name) | .browser_download_url' <<< "$release_data" | head -n 1)"
+    digest="$(jq -r --arg name "$asset_name" '.assets[] | select(.name == $name) | .digest' <<< "$release_data" | head -n 1 | cut -d: -f2)"
+    if [[ -z "$asset_url" || -z "$digest" || "$digest" == null ]]; then
+        echo "Could not find a verifiable Sniffnet package; skipping."
+        return 0
+    fi
+
+    package_file="$(mktemp --suffix="$suffix")"
+    curl -fL "$asset_url" -o "$package_file"
+    if ! printf '%s  %s\n' "$digest" "$package_file" | sha256sum -c -; then
+        rm -f "$package_file"
+        echo "Sniffnet package checksum did not match; not installing."
+        return 1
+    fi
+
+    case "$PACKAGE_MANAGER" in
+        apt)
             chmod 644 "$package_file"
             run_privileged apt install -y "$package_file"
             ;;
         dnf)
-            asset_url="$(curl -fsSL https://api.github.com/repos/GyulyVGC/sniffnet/releases/latest | jq -r --arg arch "$arch" '.assets[] | select(.name == ("Sniffnet_LinuxRPM_" + $arch + ".rpm")) | .browser_download_url')"
-            package_file="$(mktemp --suffix=.rpm)"
-            curl -fL "$asset_url" -o "$package_file"
             run_privileged dnf install -y "$package_file"
             ;;
-        *)
-            echo "Sniffnet's official Linux packages support Debian/Ubuntu and Fedora; skipping on $PACKAGE_MANAGER."
-            ;;
     esac
-    [[ -z "${package_file:-}" ]] || rm -f "$package_file"
+    rm -f "$package_file"
 }
 
 install_appimagelauncher() {

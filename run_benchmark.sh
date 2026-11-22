@@ -3,8 +3,14 @@
 # 📊 CPU Benchmarking Utility
 ######################################################################
 
-TMP_FILE="/tmp/benchmark_results_$USER.tmp"
-rm -f "$TMP_FILE"
+TMP_FILE="$(mktemp)"
+trap 'rm -f "$TMP_FILE"' EXIT
+
+# nproc is GNU-specific; fall back to what FreeBSD and others provide
+cpu_count() {
+    nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1
+}
+CPUS="$(cpu_count)"
 
 echo "==========================================" > "$TMP_FILE"
 echo "        SYSTEM BENCHMARK REPORT           " >> "$TMP_FILE"
@@ -31,9 +37,9 @@ else
     echo "  Score: ${SINGLE_SCORE:-N/A} events/sec" >> "$TMP_FILE"
 
     echo "" >> "$TMP_FILE"
-    echo "Multi-Core ($(nproc) threads):" >> "$TMP_FILE"
+    echo "Multi-Core ($CPUS threads):" >> "$TMP_FILE"
     echo "Running multi-core benchmark..."
-    MULTI_SCORE=$(sysbench --threads="$(nproc)" cpu run 2>/dev/null | grep "events per second:" | awk '{print $4}')
+    MULTI_SCORE=$(sysbench --threads="$CPUS" cpu run 2>/dev/null | grep "events per second:" | awk '{print $4}')
     echo "  Score: ${MULTI_SCORE:-N/A} events/sec" >> "$TMP_FILE"
 fi
 

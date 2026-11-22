@@ -58,6 +58,26 @@ welcome_sysinfo () {
     fi
 }
 
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles"
+
+# cached_fetch NAME TTL_MINUTES COMMAND...
+# Prints COMMAND's output, reusing the cached copy while it is younger than TTL_MINUTES, so
+# opening a shell does not make a network request every time. Empty results are not cached.
+cached_fetch() {
+    local name="$1" ttl="$2" file out
+    shift 2
+    file="$CACHE_DIR/$name"
+    if [ -s "$file" ] && [ -n "$(find "$file" -mmin -"$ttl" 2>/dev/null)" ]; then
+        cat "$file"
+        return 0
+    fi
+    out="$("$@" 2>/dev/null)" || out=""
+    if [ -n "$out" ]; then
+        mkdir -p "$CACHE_DIR" 2>/dev/null && printf '%s\n' "$out" > "$file" 2>/dev/null
+        printf '%s\n' "$out"
+    fi
+}
+
 welcome_today () {
     local timeout=2
     echo -e "\033[1;34mToday\n------${RESET}"
@@ -73,8 +93,9 @@ welcome_today () {
     if command -v curl &>/dev/null; then
         local CITY
         local weather
-        CITY=$(curl -fsS --max-time 3 http://ip-api.com/line/?fields=city 2>/dev/null)
-        weather=$(curl -fsS -m "$timeout" "https://wttr.in/${CITY}?format=%c%l:+%C+%t,+%p+%w&M" 2>/dev/null)
+        CITY=$(cached_fetch city 360 curl -fsS --max-time 3 'http://ip-api.com/line/?fields=city')
+        weather=$(cached_fetch "weather-${CITY//[^A-Za-z0-9]/_}" 30 \
+            curl -fsS -m "$timeout" "https://wttr.in/${CITY// /+}?format=%c%l:+%C+%t,+%p+%w&M")
         if [ -n "$weather" ]; then
             echo -e "${COLOR_S}🌤️  Weather: ${weather}${RESET}"
         fi
@@ -92,7 +113,7 @@ welcome_today () {
         local ip_address ip_interface public_ip
         ip_address=$(ip route get 8.8.8.8 2>/dev/null | awk -F"src " 'NR==1{split($2,a," ");print a[1]}')
         ip_interface=$(ip route get 8.8.8.8 2>/dev/null | awk -F"dev " 'NR==1{split($2,a," ");print a[1]}')
-        public_ip=$(curl -s -m $timeout 'http://ip-api.com/line/?fields=query' 2>/dev/null)
+        public_ip=$(cached_fetch public-ip 10 curl -fsS -m "$timeout" 'http://ip-api.com/line/?fields=query')
 
         if [ -n "$ip_address" ]; then
             echo -e "${COLOR_S}🌐  IP: ${public_ip:-N/A} (${ip_address} on ${ip_interface})${RESET}\n"

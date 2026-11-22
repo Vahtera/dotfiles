@@ -27,7 +27,14 @@ mark_go_installed() {
 }
 
 install_wordterm_if_go_installed() {
-    [[ "$GO_INSTALLED" -eq 1 ]] || return 0
+    if [[ "$GO_INSTALLED" -ne 1 ]]; then
+        # Go was not installed in this run (re-run, or Go was already there). Still offer
+        # to build Wordterm when Go is available and Wordterm is not installed yet.
+        command -v go >/dev/null 2>&1 || return 0
+        [[ -e "$HOME/.local/bin/wordterm" ]] && return 0
+        declare -F ask >/dev/null 2>&1 || return 0
+        ask "Go is installed but Wordterm is not. Build Wordterm now?" || return 0
+    fi
 
     local installer="$APPS_COMMON_DIR/install-wordterm.sh"
     if [[ ! -f "$installer" ]]; then
@@ -38,7 +45,7 @@ install_wordterm_if_go_installed() {
         return 1
     fi
 
-    echo "Go was installed; installing Wordterm..."
+    echo "Installing Wordterm..."
     bash "$installer"
 }
 
