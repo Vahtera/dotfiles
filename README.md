@@ -1,4 +1,4 @@
->[!NOTE]
+>[!CAUTION]
 >This is a personal setup, made for my own machines. It will automatically install OpenSSH Server and open up port 22, and it **overwrites** the managed config files listed below on every run, so all my computers end up with identical settings. Just FYI.
 
 # 🐧 Vahtera Dotfiles & System Setup
