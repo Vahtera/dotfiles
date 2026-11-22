@@ -31,10 +31,9 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/Vahtera/dotfiles/main/se
 1. **Detects the distro** and sets up the SSH server first (installs OpenSSH, enables the service, opens port 22 in the firewall), so remote access works even if a later step fails. Skipped on Haiku.
 2. Installs helper scripts and the Oh My Posh theme, and, if NetworkManager is running, offers to disable automatically learned IPv6 DNS (`disable-ipv6-auto-dns.sh`).
 3. Downloads the Nerd Fonts listed in `install-nerdfont.sh`.
-4. Deploys `~/.bash_aliases` (shared by bash and zsh) and the Nushell `aliases.nu`.
-5. Updates the managed shell configuration for bash (including installing [ble.sh](https://github.com/akinomyoga/ble.sh)), zsh, and Nushell.
-6. Deploys the Conky and Fastfetch configuration.
-7. Runs the package installer for the detected distro, then installs extra CLI tools from upstream installers (`install-extra.sh`).
+4. Updates the shell configuration by running `setup-bash.sh` (including installing [ble.sh](https://github.com/akinomyoga/ble.sh)), `setup-zsh.sh` and `setup-nushell.sh`. Each of them can also be run on its own to update just one shell (see below).
+5. Deploys the Conky and Fastfetch configuration.
+6. Runs the package installer for the detected distro, then installs extra CLI tools from upstream installers (`install-extra.sh`).
 
 A failing step prints a warning and the setup carries on with the next one.
 
@@ -49,6 +48,8 @@ A failing step prints a warning and the setup carries on with the next one.
 ### Installers
 
 * `setup.sh` - Master installer, described above.
+* `setup-common.sh` - Helpers shared by `setup.sh` and the shell scripts below (colors, `fetch_file`, source-line handling).
+* `setup-bash.sh`, `setup-zsh.sh`, `setup-nushell.sh` - Update one shell's managed configuration (and, for bash and zsh, `~/.bash_aliases`; for Nushell, `aliases.nu`). `setup.sh` installs them to `~/.local/bin/`, so a single shell can be refreshed later with e.g. `~/.local/bin/setup-zsh.sh` without running the whole setup. A script skips itself when its shell is not installed. When run from a clone it uses the clone's files; otherwise it downloads the latest from GitHub.
 * `apps.list` - Shared CLI package list used by all package installers. Each quoted line is one app; comma-separated names are tried in order, selecting the first available package. Python apps for pipx are listed separately.
 * `apps-common.sh` - Shared loader and ordered-alternative parser for `apps.list`, plus the flatpak check and the Wordterm hook.
 * `debian-apt.sh`, `fedora-dnf.sh`, `arch-pacman.sh`, `void-xbps.sh`, `freebsd-pkg.sh`, `haiku-pkgman.sh` - Package installers for each family. All of them ask before each step; pass `--auto-yes` to answer yes to everything. The Debian installer also refreshes empty package lists on its own, and it needs `sudo` unless run as root.

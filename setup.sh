@@ -6,23 +6,12 @@
 
 set -e
 
-# Colors
-PURPLE='\033[0;35m'
-CYAN='\033[1;36m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-RESET='\033[0m'
-
 REPO_RAW_URL="https://raw.githubusercontent.com/Vahtera/dotfiles/main"
 OS_RELEASE_FILE="${OS_RELEASE_FILE:-/etc/os-release}"
 
 # sshd, ufw, nft, iptables, ... live in sbin directories that a regular user's PATH
 # often lacks (e.g. Debian), which makes `command -v` miss tools that are installed.
 export PATH="$PATH:/usr/local/sbin:/usr/sbin:/sbin"
-
-echo -e "${CYAN}====================================================${RESET}"
-echo -e "${PURPLE}   Setting up Dotfiles for user: ${YELLOW}$USER${RESET}"
-echo -e "${CYAN}====================================================${RESET}\n"
 
 # Determine directory if running from a local clone. With `bash -c "$(curl ...)"`
 # BASH_SOURCE is empty and dirname would resolve to the current directory, so only
@@ -37,35 +26,28 @@ CONFIG_DIR="$HOME/.config"
 mkdir -p "$LOCAL_BIN"
 mkdir -p "$CONFIG_DIR/ohmyposh"
 
-# Helper function to fetch files locally or from GitHub raw URL
-fetch_file() {
-    local filename="$1"
-    local dest="$2"
-
-    if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/$filename" ]; then
-        cp "$SCRIPT_DIR/$filename" "$dest"
-        return
-    fi
-
-    local tmp rc=0
-    tmp="$(mktemp)" || return 1
+# Shared helpers (colors, fetch_file, ...). Use the clone's copy; when run via curl, download
+# it first. A copy also ends up in ~/.local/bin for the setup-<shell>.sh scripts.
+if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/setup-common.sh" ]; then
+    # shellcheck source=setup-common.sh
+    source "$SCRIPT_DIR/setup-common.sh"
+else
     if command -v curl &>/dev/null; then
-        curl -fsSL "$REPO_RAW_URL/$filename" -o "$tmp" || rc=$?
+        curl -fsSL "$REPO_RAW_URL/setup-common.sh" -o "$LOCAL_BIN/setup-common.sh" || rm -f "$LOCAL_BIN/setup-common.sh"
     elif command -v wget &>/dev/null; then
-        wget -qO "$tmp" "$REPO_RAW_URL/$filename" || rc=$?
-    else
-        echo -e "${YELLOW}❌ Error: Could not locate $filename locally nor via curl/wget.${RESET}"
-        rc=1
+        wget -qO "$LOCAL_BIN/setup-common.sh" "$REPO_RAW_URL/setup-common.sh" || rm -f "$LOCAL_BIN/setup-common.sh"
     fi
+    if [ ! -s "$LOCAL_BIN/setup-common.sh" ]; then
+        echo "Error: could not get setup-common.sh (need curl or wget, and network access)." >&2
+        exit 1
+    fi
+    # shellcheck source=/dev/null
+    source "$LOCAL_BIN/setup-common.sh"
+fi
 
-    if [ "$rc" -eq 0 ]; then
-        cat "$tmp" > "$dest" || rc=$?
-    else
-        echo -e "${YELLOW}❌ Could not download $filename (exit $rc).${RESET}"
-    fi
-    rm -f "$tmp"
-    return "$rc"
-}
+echo -e "${CYAN}====================================================${RESET}"
+echo -e "${PURPLE}   Setting up Dotfiles for user: ${YELLOW}$USER${RESET}"
+echo -e "${CYAN}====================================================${RESET}\n"
 
 run_privileged() {
     if [ "$EUID" -eq 0 ]; then
@@ -303,127 +285,24 @@ else
     echo -e "  ${YELLOW}Could not fetch install-nerdfont.sh; skipping Nerd Font installation.${RESET}"
 fi
 
-# 2. Deploy .bash_aliases for bash and zsh
-echo -e "\n${CYAN}[2/5] Deploying .bash_aliases...${RESET}"
-if fetch_file "bash_aliases" "$HOME/.bash_aliases"; then
-    echo -e "  ${GREEN}✓ Copied .bash_aliases to $HOME/.bash_aliases${RESET}"
-fi
-
-# 2.1 Deploy .nushell/aliases.nu
-echo -e "\n${CYAN}[2.1/5] Deploying nushell aliases.nu...${RESET}"
-NUSHELL_CONFIG_DIR="$HOME/.config/nushell"
-mkdir -p "$NUSHELL_CONFIG_DIR"
-if fetch_file "aliases.nu" "$NUSHELL_CONFIG_DIR/aliases.nu"; then
-    echo -e "  ${GREEN}✓ Copied aliases.nu to $NUSHELL_CONFIG_DIR/aliases.nu${RESET}"
-fi 
-
-
-# 3. Update the managed Bash configuration and source it from .bashrc
-echo -e "\n${CYAN}[3/5] Updating $HOME/.bashrc...${RESET}"
-BASHRC="$HOME/.bashrc"
-BASH_CONFIG_DIR="$HOME/.config/shells/bash"
-BASHRC_USER="$BASH_CONFIG_DIR/bashrc-user"
-mkdir -p "$BASH_CONFIG_DIR"
-touch "$BASHRC"
-
-# Install ble.sh if it is not already installed
-install_blesh() {
-    # lib/ is checked too, so an older install that only copied ble.sh gets repaired
-    if [ -f "$HOME/.local/share/blesh/ble.sh" ] && [ -d "$HOME/.local/share/blesh/lib" ]; then
-        return 0
-    fi
-    command -v xz >/dev/null 2>&1 && command -v tar >/dev/null 2>&1 \
-        || { echo "xz and tar are required for ble.sh" >&2; return 1; }
-    local tmp rc=0; tmp="$(mktemp -d)" || return 1
-    curl -fsSL -o "$tmp/ble.tar.xz" \
-        https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz \
-        && tar xJf "$tmp/ble.tar.xz" -C "$tmp" \
-        && bash "$tmp/ble-nightly/ble.sh" --install "$HOME/.local/share" || rc=1
-    rm -rf "$tmp"; return $rc
-}
-install_blesh || echo -e "  ${YELLOW}ble.sh installation failed; continuing.${RESET}"
-
-if fetch_file "bashrc-user" "$BASHRC_USER"; then
-    echo -e "  ${GREEN}✓ Updated $BASHRC_USER${RESET}"
-fi
-
-BASHRC_SOURCE='[[ -f "$HOME/.config/shells/bash/bashrc-user" ]] && source "$HOME/.config/shells/bash/bashrc-user"'
-if ! grep -qF "$BASHRC_SOURCE" "$BASHRC"; then
-    printf '\n%s\n' "$BASHRC_SOURCE" >> "$BASHRC"
-    echo -e "  ${GREEN}✓ Added the bashrc-user source line to $BASHRC${RESET}"
-else
-    echo -e "  ${YELLOW}The bashrc-user source line already exists in $BASHRC.${RESET}"
-fi
-
-#3.1 Update the managed zsh configuration and source it from .zshrc if zsh is installed
-if command -v zsh &>/dev/null; then
-    echo -e "\n${CYAN}[3.1/5] Updating $HOME/.zshrc...${RESET}"
-    ZSHRC="$HOME/.zshrc"
-    ZSH_CONFIG_DIR="$HOME/.config/shells/zsh"
-    ZSHRC_USER="$ZSH_CONFIG_DIR/zshrc-user"
-    mkdir -p "$ZSH_CONFIG_DIR"
-    touch "$ZSHRC"
-
-    if fetch_file "zshrc-user" "$ZSHRC_USER"; then
-        echo -e "  ${GREEN}✓ Updated $ZSHRC_USER${RESET}"
-    fi
-
-    ZSHRC_SOURCE='[[ -f "$HOME/.config/shells/zsh/zshrc-user" ]] && source "$HOME/.config/shells/zsh/zshrc-user"'
-    if ! grep -qF "$ZSHRC_SOURCE" "$ZSHRC"; then
-        printf '\n%s\n' "$ZSHRC_SOURCE" >> "$ZSHRC"
-        echo -e "  ${GREEN}✓ Added the zshrc-user source line to $ZSHRC${RESET}"
-    else
-        echo -e "  ${YELLOW}The zshrc-user source line already exists in $ZSHRC.${RESET}"
-    fi
-fi
-
-#3.2 Update the managed nushell configuration and source it from config.nu if nushell is installed
-if command -v nu &>/dev/null; then
-    echo -e "\n${CYAN}[3.2/5] Updating $HOME/.config/nushell/config.nu...${RESET}"
-    NUSHELL_CONFIG_DIR="$HOME/.config/nushell"
-    NUSHELL_USER="$NUSHELL_CONFIG_DIR/nushell-user"
-    NUSHELL_ENV="$NUSHELL_CONFIG_DIR/nushell-env"
-    mkdir -p "$NUSHELL_CONFIG_DIR"
-    touch "$NUSHELL_CONFIG_DIR/config.nu"
-    touch "$NUSHELL_CONFIG_DIR/env.nu"
-
-    if fetch_file "nushell-user" "$NUSHELL_USER"; then
-        echo -e "  ${GREEN}✓ Updated $NUSHELL_USER${RESET}"
-    fi
-
-    if fetch_file "nushell-env" "$NUSHELL_ENV"; then
-        echo -e "  ${GREEN}✓ Updated $NUSHELL_ENV${RESET}"
-    fi
-
-    # Nushell has no [[ ]] or &&, so earlier versions of this script wrote lines that
-    # cannot be parsed. Remove those, then use plain `source` lines.
-    for nu_file in config.nu env.nu; do
-        if grep -qF '[[ -f "$HOME/.config/nushell/nushell-' "$NUSHELL_CONFIG_DIR/$nu_file"; then
-            grep -vF '[[ -f "$HOME/.config/nushell/nushell-' "$NUSHELL_CONFIG_DIR/$nu_file" \
-                > "$NUSHELL_CONFIG_DIR/$nu_file.tmp" || true
-            cat "$NUSHELL_CONFIG_DIR/$nu_file.tmp" > "$NUSHELL_CONFIG_DIR/$nu_file"
-            rm -f "$NUSHELL_CONFIG_DIR/$nu_file.tmp"
-            echo -e "  ${YELLOW}Removed old bash-style source lines from $NUSHELL_CONFIG_DIR/$nu_file${RESET}"
+# 2. Update the shell configuration (bash, zsh, nushell). Each setup-<shell>.sh can also be
+# run on its own, e.g. ~/.local/bin/setup-zsh.sh, to update just one shell.
+echo -e "\n${CYAN}[2-3/5] Updating shell configuration...${RESET}"
+fetch_file "setup-common.sh" "$LOCAL_BIN/setup-common.sh" || true
+for shell_script in setup-bash.sh setup-zsh.sh setup-nushell.sh; do
+    if fetch_file "$shell_script" "$LOCAL_BIN/$shell_script"; then
+        chmod +x "$LOCAL_BIN/$shell_script"
+        # From a clone, run the clone's copy so local changes are used; otherwise the installed one
+        shell_script_dir="$LOCAL_BIN"
+        if [ -n "$SCRIPT_DIR" ]; then
+            shell_script_dir="$SCRIPT_DIR"
         fi
-    done
-
-    NUSHELL_SOURCE='source ~/.config/nushell/nushell-user'
-    if ! grep -qF "$NUSHELL_SOURCE" "$NUSHELL_CONFIG_DIR/config.nu"; then
-        printf '\n%s\n' "$NUSHELL_SOURCE" >> "$NUSHELL_CONFIG_DIR/config.nu"
-        echo -e "  ${GREEN}✓ Added the nushell-user source line to $NUSHELL_CONFIG_DIR/config.nu${RESET}"
+        bash "$shell_script_dir/$shell_script" \
+            || echo -e "  ${YELLOW}$shell_script did not finish cleanly; continuing.${RESET}"
     else
-        echo -e "  ${YELLOW}The nushell-user source line already exists in $NUSHELL_CONFIG_DIR/config.nu.${RESET}"
+        echo -e "  ${YELLOW}Could not fetch $shell_script; skipping.${RESET}"
     fi
-
-    NUSHELL_ENV_SOURCE='source ~/.config/nushell/nushell-env'
-    if ! grep -qF "$NUSHELL_ENV_SOURCE" "$NUSHELL_CONFIG_DIR/env.nu"; then
-        printf '\n%s\n' "$NUSHELL_ENV_SOURCE" >> "$NUSHELL_CONFIG_DIR/env.nu"
-        echo -e "  ${GREEN}✓ Added the nushell-env source line to $NUSHELL_CONFIG_DIR/env.nu${RESET}"
-    else
-        echo -e "  ${YELLOW}The nushell-env source line already exists in $NUSHELL_CONFIG_DIR/env.nu.${RESET}"
-    fi
-fi  
-
+done
 
 # 4. Deploy Conky configuration
 echo -e "\n${CYAN}[4/5] Deploying Conky configuration...${RESET}"
