@@ -1,5 +1,12 @@
+# Ensure local bin is in PATH
+if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+    export PATH="$PATH:$HOME/.local/bin"
+fi
+
 # Go
-export PATH="$PATH:$(go env GOPATH)/bin"
+if command -v go &>/dev/null; then
+    export PATH="$PATH:$(go env GOPATH)/bin"
+fi
 
 if command -v thefuck &>/dev/null; then
     eval "$(thefuck --alias)"
@@ -15,8 +22,10 @@ fi
 
 ZSH_RPROMPT_INDENT=0
 
-# Oh My Posh — shared prompt configuration
-eval "$("$HOME/.local/bin/oh-my-posh" init zsh --config "$HOME/.config/ohmyposh/anna.omp.json")"
+# Oh My Posh — shared prompt configuration (only when it and its config are installed)
+if [[ -x "$HOME/.local/bin/oh-my-posh" && -f "$HOME/.config/ohmyposh/anna.omp.json" ]]; then
+    eval "$("$HOME/.local/bin/oh-my-posh" init zsh --config "$HOME/.config/ohmyposh/anna.omp.json")"
+fi
 
 if [ -x "$HOME/.local/bin/welcome_banner.sh" ] && [[ $- == *i* ]]; then
     clear && "$HOME/.local/bin/welcome_banner.sh"

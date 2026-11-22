@@ -24,14 +24,16 @@ if [[ $- == *i* && -f "$HOME/.local/share/blesh/ble.sh" ]]; then
     source "$HOME/.local/share/blesh/ble.sh" --attach=none
 fi
 
-# Oh My Posh — shared prompt configuration
-if [[ $- == *i* ]]; then
+# Oh My Posh — shared prompt configuration (only when it and its config are installed)
+if [[ $- == *i* && -x "$HOME/.local/bin/oh-my-posh" && -f "$HOME/.config/ohmyposh/anna.omp.json" ]]; then
     eval "$("$HOME/.local/bin/oh-my-posh" init bash --config "$HOME/.config/ohmyposh/anna.omp.json")"
-fi
 
-# ble.sh — Oh My Posh transient prompt
-bleopt prompt_ps1_transient=always
-bleopt prompt_ps1_final='$( "$HOME/.local/bin/oh-my-posh" print transient --shell=bash --shell-version="$BASH_VERSION" --config="$HOME/.config/ohmyposh/anna.omp.json" --escape=false )'
+    # ble.sh — Oh My Posh transient prompt (only when ble.sh was loaded above)
+    if [[ ${BLE_VERSION-} ]]; then
+        bleopt prompt_ps1_transient=always
+        bleopt prompt_ps1_final='$( "$HOME/.local/bin/oh-my-posh" print transient --shell=bash --shell-version="$BASH_VERSION" --config="$HOME/.config/ohmyposh/anna.omp.json" --escape=false )'
+    fi
+fi
 
 # Attach ble.sh after all prompt integrations have initialized
 if [[ ${BLE_VERSION-} ]]; then

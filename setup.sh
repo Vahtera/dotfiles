@@ -317,8 +317,12 @@ touch "$BASHRC"
 
 # Install ble.sh if it is not already installed
 install_blesh() {
-    [ -f "$HOME/.local/share/blesh/ble.sh" ] && return 0
-    command -v xz >/dev/null 2>&1 || { echo "xz is required for ble.sh" >&2; return 1; }
+    # lib/ is checked too, so an older install that only copied ble.sh gets repaired
+    if [ -f "$HOME/.local/share/blesh/ble.sh" ] && [ -d "$HOME/.local/share/blesh/lib" ]; then
+        return 0
+    fi
+    command -v xz >/dev/null 2>&1 && command -v tar >/dev/null 2>&1 \
+        || { echo "xz and tar are required for ble.sh" >&2; return 1; }
     local tmp rc=0; tmp="$(mktemp -d)" || return 1
     curl -fsSL -o "$tmp/ble.tar.xz" \
         https://github.com/akinomyoga/ble.sh/releases/download/nightly/ble-nightly.tar.xz \
