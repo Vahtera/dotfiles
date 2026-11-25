@@ -1,4 +1,6 @@
 apps=(
+    'bash'
+    'unzip'
     'git'
     'neovim'
     'ranger'
